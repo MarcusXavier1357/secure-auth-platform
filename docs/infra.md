@@ -95,6 +95,92 @@ docker exec -it infra-postgres-1 psql -U auth -d auth
 docker exec -it infra-redis-1 redis-cli
 ```
 
+## Explorar o banco com DBeaver
+
+Para ver e editar dados no Postgres (equivalente ao DB Browser no SQLite), use o **[DBeaver Community](https://dbeaver.io/download/)** — gratuito, estável e adequado a longo prazo. Instale no Windows uma vez; a conexão aponta para o container via porta publicada no host.
+
+### Pré-requisito
+
+O Postgres do compose precisa estar rodando:
+
+```bash
+cd infra
+docker compose up -d postgres
+```
+
+### Criar a conexão "Auth Dev"
+
+1. Abra o DBeaver → **Database** → **New Database Connection**
+2. Escolha **PostgreSQL** → **Next**
+3. Preencha (valores vêm do `infra/.env`):
+
+| Campo | Valor |
+|---|---|
+| Host | `127.0.0.1` |
+| Port | `55432` |
+| Database | `auth` (ou `POSTGRES_DB`) |
+| Username | `auth` (ou `POSTGRES_USER`) |
+| Password | valor de `POSTGRES_PASSWORD` no `.env` |
+
+4. Aba **PostgreSQL**: deixe padrão (não marque SSL em dev local)
+5. **Test Connection** → se pedir, baixe os drivers PostgreSQL do DBeaver
+6. **Finish** — renomeie a conexão para `Auth Dev` (botão direito → Edit → General)
+
+**Erro comum:** usar porta `5432`. Neste projeto a porta do **host** é `55432` (ver seção de serviços). Dentro do Docker a API usa `postgres:5432`; o DBeaver roda no Windows e precisa da porta mapeada.
+
+### O que fazer no dia a dia
+
+| Tarefa | Onde no DBeaver |
+|---|---|
+| Ver tabelas e dados | `auth` → **Schemas** → **public** → **Tables** → botão direito → **View Data** |
+| Rodar SQL | **SQL Editor** (Ctrl+]) ou botão direito na conexão → **SQL Editor** → **New Script** |
+| Ver relacionamentos | Botão direito na tabela → **View Diagram** (ou ER Diagram na conexão) |
+| Editar uma linha | **View Data** → duplo clique na célula → **Save** (Ctrl+S) |
+
+Tabelas mais úteis neste projeto:
+
+| Tabela | Conteúdo |
+|---|---|
+| `users` | Contas, email, `active`, `role_id` |
+| `permissions` | Codes (`users.manage`, etc.) |
+| `user_permissions` | Quem tem qual permissão |
+| `sessions` | Refresh tokens (hash), expiração, revogação |
+| `audit_logs` | Trilha de ações críticas (`old_data`/`new_data` em JSONB) |
+| `roles` | Papéis organizacionais (não concedem permissão) |
+
+Consultas úteis para colar no SQL Editor:
+
+```sql
+-- Usuários com permissões
+SELECT u.id, u.name, u.email, u.active, array_agg(p.code ORDER BY p.code) AS permissions
+FROM users u
+LEFT JOIN user_permissions up ON up.user_id = u.id
+LEFT JOIN permissions p ON p.id = up.permission_id
+GROUP BY u.id
+ORDER BY u.id;
+
+-- Últimos logs de auditoria
+SELECT id, action, entity, entity_id, user_id, created_at
+FROM audit_logs
+ORDER BY created_at DESC
+LIMIT 50;
+```
+
+### O que **não** fazer no DBeaver
+
+- **Não altere o schema visualmente** (criar/apagar colunas, tabelas) — mudanças de estrutura vão em `backend/migrations/` e são aplicadas pela API no boot. Editar o schema direto no banco gera drift e quebra deploys.
+- **Cuidado ao editar** `users.password_hash`, `sessions` e `audit_logs` — são dados sensíveis ou de integridade; prefira a API ou SQL consciente.
+- O banco de testes (`auth_test`) é outro database, recriado pelos testes em `127.0.0.1:55432` — não confunda com `auth` de desenvolvimento.
+
+### DBeaver vs terminal
+
+| Situação | Preferir |
+|---|---|
+| Explorar tabelas, editar poucas linhas, diagramas | DBeaver |
+| Script rápido, CI, servidor sem GUI | `docker compose exec postgres psql ...` |
+
+Detalhes do schema (colunas, índices, ER): [database.md](database.md).
+
 ## Volumes
 
 | Volume | Conteúdo | Pode perder? |

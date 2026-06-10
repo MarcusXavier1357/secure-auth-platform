@@ -8,7 +8,7 @@ Documentação técnica do sistema de autenticação e autorização. A especifi
 | [database.md](database.md) | Schema completo (diagrama ER), tabelas, índices, migrations, ciclo de vida das sessões, auditoria |
 | [redis.md](redis.md) | Chaves e tipos de dado, cache-aside de permissões, rate limit de login, comportamento em falha |
 | [frontend.md](frontend.md) | Estrutura da SPA, gestão de tokens (memória + cookie), renovação automática, controle visual de permissões |
-| [infra.md](infra.md) | Docker Compose, Nginx, portas, healthchecks, variáveis de ambiente, operação |
+| [infra.md](infra.md) | Docker Compose, Nginx, portas, healthchecks, variáveis de ambiente, operação, DBeaver |
 
 ## Visão geral em 30 segundos
 
