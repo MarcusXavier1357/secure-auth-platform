@@ -4,26 +4,57 @@ SPA em **React 19 + Vite + TypeScript**, com Tailwind CSS 4, React Router 7 e Ta
 
 **Princípio central**: o frontend é não-confiável por definição. Todo controle de permissão aqui é **cosmético** (esconder UI) — a autorização real acontece sempre no backend.
 
-## Estrutura
+## Estrutura — convenção App Router
+
+As rotas seguem a convenção do Next.js App Router (pastas `app/`, arquivos `layout.tsx`/`page.tsx`, route groups entre parênteses), montadas explicitamente no React Router em `router/index.tsx` — sem gerador automático.
 
 ```
 frontend/src/
-├── main.tsx                 # bootstrap: QueryClient → Router → AuthProvider → rotas
+├── main.tsx                    # bootstrap: providers + <AppRouter />
+├── router/
+│   ├── index.tsx               # monta <Routes> com layouts aninhados + lazy()
+│   └── paths.ts                # fonte única de paths: paths.users(), paths.audit()...
+├── app/
+│   ├── layout.tsx              # RootLayout (ponto para error boundary futuro)
+│   ├── (public)/               # route group — NÃO entra na URL
+│   │   ├── layout.tsx          # PublicLayout: conteúdo centralizado
+│   │   └── login/page.tsx      # /login
+│   └── (protected)/
+│       ├── layout.tsx          # ProtectedLayout: RequireAuth + AppShell + Suspense
+│       ├── page.tsx            # / (Dashboard)
+│       ├── users/page.tsx      # /users        (users.manage, lazy)
+│       ├── permissions/page.tsx# /permissions  (permissions.manage, lazy)
+│       └── audit/page.tsx      # /audit        (audit_logs.read, lazy)
 ├── services/
-│   └── api.ts               # ÚNICO ponto de fetch. Token em memória + retry em 401
+│   └── api.ts                  # ÚNICO ponto de fetch + api.users/permissions/audit
 ├── providers/
-│   └── AuthProvider.tsx     # contexto: user, permissions, login(), logout(), hasPermission()
+│   └── AuthProvider.tsx        # contexto: user, permissions, login(), logout()
 ├── hooks/
-│   └── usePermission.ts     # açúcar sobre hasPermission
-├── components/
-│   ├── RequireAuth.tsx      # guard de rota: loading → spinner; sem user → /login
-│   └── Can.tsx              # renderiza children só se o usuário tem a permissão
-└── pages/
-    ├── Login.tsx            # formulário com tratamento de 401/429
-    └── Dashboard.tsx        # mostra permissões e cards condicionais (placeholders)
+│   └── usePermission.ts
+└── components/
+    ├── AppShell.tsx            # header + nav (links visíveis via Can)
+    ├── RequireAuth.tsx         # guard de autenticação
+    ├── RequirePermission.tsx   # guard de rota por permissão (Outlet)
+    └── Can.tsx                 # esconde pedaços de UI
 ```
 
-Rotas: `/login` (pública) e `/` (Dashboard, protegida por `RequireAuth`).
+### Mapa de rotas
+
+| Rota | Arquivo | Guard |
+|---|---|---|
+| `/login` | `app/(public)/login/page.tsx` | Pública; redireciona para `/` se logado |
+| `/` | `app/(protected)/page.tsx` | `RequireAuth` |
+| `/users` | `app/(protected)/users/page.tsx` | `RequireAuth` + `users.manage` |
+| `/permissions` | `app/(protected)/permissions/page.tsx` | `RequireAuth` + `permissions.manage` |
+| `/audit` | `app/(protected)/audit/page.tsx` | `RequireAuth` + `audit_logs.read` |
+| `*` | `NotFoundPage` em `router/index.tsx` | — |
+
+### Convenções de rota
+
+- **Nova página**: criar `app/(protected)/<segmento>/page.tsx` (export default) e registrar em `router/index.tsx` dentro do guard adequado
+- **Links**: sempre via `paths.x()` — nunca strings soltas
+- **Guard duplo**: rota inteira protegida por `RequirePermission` (redireciona) **e** link/cards escondidos por `Can` (cosmético). O backend continua sendo a autorização real
+- **Páginas admin são lazy**: `lazy(() => import(...))` em `router/index.tsx`; o `Suspense` fica no `ProtectedLayout`
 
 ## Gestão de tokens — a parte mais importante
 
@@ -75,7 +106,7 @@ Na prática: o access token expira a cada 15 min e o usuário nunca percebe. Se 
 
 ## Controle visual de permissões
 
-O `/me` retorna os codes do usuário (ex.: `["users.manage", "clients.read"]`), guardados no `AuthProvider`. Dois jeitos de usar:
+O `/me` retorna os codes do usuário (ex.: `["users.manage", "audit_logs.read"]`), guardados no `AuthProvider`. Dois jeitos de usar:
 
 ```tsx
 // Declarativo — esconde o card se não tiver a permissão
@@ -84,7 +115,7 @@ O `/me` retorna os codes do usuário (ex.: `["users.manage", "clients.read"]`), 
 </Can>
 
 // Imperativo — para lógica
-const podeExportar = usePermission("financial.export");
+const podeVerAuditoria = usePermission("audit_logs.read");
 ```
 
 Lembrete: isso só esconde pixels. Se o usuário forjar a chamada, o backend responde `403`.
@@ -108,8 +139,16 @@ npm run format        # Prettier em src/
 
 Convenções: componentes funcionais, hooks para lógica reutilizável, Tailwind para estilo (sem CSS separado além do `index.css` com o import do Tailwind), mensagens de UI em português.
 
+## Telas admin
+
+As páginas `/users`, `/permissions` e `/audit` usam TanStack Query (`useQuery`/`useMutation`) sobre os métodos de `api.ts`:
+
+- **`/users`**: tabela com nome, email, role, contagem de permissões e status (`api.users.list()`)
+- **`/permissions`**: seleção de usuário + grant/revoke por permissão; mutações invalidam a query `["users"]` para refletir o estado real do backend
+- **`/audit`**: tabela paginada (`limit`/`offset`) via `api.audit.list()`
+
 ## Limitações atuais (conscientes)
 
-- Os cards do Dashboard (Usuários, Permissões, Auditoria) são **placeholders** — as telas de gestão não foram construídas; apenas a API existe
-- TanStack Query está instalado e provê o `QueryClientProvider`, mas o fluxo de auth usa estado manual no provider; queries declarativas fazem sentido quando as telas de admin forem construídas
+- O fluxo de auth usa estado manual no `AuthProvider` (não TanStack Query) — decisão consciente: sessão é estado global síncrono, não cache de servidor
+- Não há criação/edição de usuário pela UI (`/users` é leitura; criação existe só na API)
 - Não há testes de frontend (a cobertura e2e está no backend, ver `backend/tests/`)

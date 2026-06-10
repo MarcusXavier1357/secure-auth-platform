@@ -72,6 +72,29 @@ export const api = {
   logout: () => request<void>("/auth/logout", { method: "POST" }),
 
   me: () => request<MeResponse>("/me"),
+
+  users: {
+    list: () => request<UserWithPermissions[]>("/users"),
+    get: (id: number) => request<UserWithPermissions>(`/users/${id}`),
+  },
+
+  permissions: {
+    list: () => request<Permission[]>("/permissions"),
+    grant: (userId: number, permissionId: number) =>
+      request<void>(`/users/${userId}/permissions`, {
+        method: "POST",
+        body: JSON.stringify({ permissionId }),
+      }),
+    revoke: (userId: number, permissionId: number) =>
+      request<void>(`/users/${userId}/permissions/${permissionId}`, {
+        method: "DELETE",
+      }),
+  },
+
+  audit: {
+    list: (limit = 50, offset = 0) =>
+      request<AuditLog[]>(`/audit-logs?limit=${limit}&offset=${offset}`),
+  },
 };
 
 export interface User {
@@ -81,6 +104,27 @@ export interface User {
   active: boolean;
   roleId: number | null;
   role?: { id: number; name: string };
+}
+
+export interface UserWithPermissions extends User {
+  permissions?: Permission[];
+}
+
+export interface Permission {
+  id: number;
+  code: string;
+  description: string;
+}
+
+export interface AuditLog {
+  id: number;
+  userId: number | null;
+  action: string;
+  entity: string;
+  entityId: number | null;
+  oldData: Record<string, unknown> | null;
+  newData: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 export interface MeResponse {

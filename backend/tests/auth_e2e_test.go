@@ -94,9 +94,9 @@ func TestMeReturnsUserAndPermissions(t *testing.T) {
 	if body.User.Email != adminEmail {
 		t.Errorf("expected email %s, got %s", adminEmail, body.User.Email)
 	}
-	// O seed concede as 11 permissões base ao admin.
-	if len(body.Permissions) != 11 {
-		t.Errorf("expected 11 permissions for admin, got %d", len(body.Permissions))
+	// O seed concede as 3 permissões ativas ao admin.
+	if len(body.Permissions) != 3 {
+		t.Errorf("expected 3 permissions for admin, got %d", len(body.Permissions))
 	}
 }
 

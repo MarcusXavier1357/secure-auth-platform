@@ -209,7 +209,7 @@ func TestAuditLogsRecordCriticalActions(t *testing.T) {
 	// Gera todas as ações críticas dentro do próprio teste para não depender
 	// da ordem de execução dos demais.
 	user := createUser(t, admin, "Auditado", "auditado@test.dev", "Senha12345!")
-	permID := findPermissionID(t, admin, "clients.read")
+	permID := findPermissionID(t, admin, "audit_logs.read")
 
 	resp := admin.do("POST", fmt.Sprintf("/users/%d/permissions", user.ID),
 		map[string]int64{"permissionId": permID})

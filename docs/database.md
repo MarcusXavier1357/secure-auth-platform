@@ -76,12 +76,9 @@ Roles **não concedem permissões**. Servem apenas para organização, relatóri
 
 ### `permissions` — o que o usuário pode fazer
 
-Permissões são atribuídas **diretamente ao usuário** (não via role). Formato do code: `recurso.acao`. Seed inicial (11):
+Permissões são atribuídas **diretamente ao usuário** (não via role). Formato do code: `recurso.acao`. Seed atual (3 — só as com rotas implementadas):
 
 ```
-clients.read    clients.write    clients.delete
-contracts.read  contracts.write  contracts.cancel
-financial.read  financial.export
 users.manage    permissions.manage    audit_logs.read
 ```
 

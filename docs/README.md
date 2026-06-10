@@ -22,6 +22,6 @@ flowchart LR
 ```
 
 - **Autenticação**: JWT de 15 min (memória do frontend) + refresh token de 30 dias (cookie HttpOnly, rotacionado a cada uso, só o hash no banco)
-- **Autorização**: permissões granulares por usuário (`users.manage`, `clients.read`...), verificadas no backend a cada request, com cache Redis de 5 min
+- **Autorização**: permissões granulares por usuário (`users.manage`, `permissions.manage`, `audit_logs.read`), verificadas no backend a cada request, com cache Redis de 5 min
 - **Roles** são só classificação organizacional — não concedem permissões
 - **Auditoria**: toda ação crítica registrada em `audit_logs` (JSONB, permanente)

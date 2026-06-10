@@ -21,7 +21,7 @@ Todas as chaves recebem o prefixo configurável `REDIS_KEY_PREFIX` (default `aut
 ```
 Chave:  auth:permissions:user:{userId}     ex.: auth:permissions:user:123
 Tipo:   SET de strings
-Valor:  {"clients.read", "clients.write", "users.manage", ...}
+Valor:  {"users.manage", "permissions.manage", "audit_logs.read"}
 TTL:    5 minutos (PERMISSIONS_CACHE_TTL)
 ```
 

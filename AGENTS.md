@@ -24,9 +24,11 @@ backend/
   migrations/        # SQL versionado (golang-migrate)
   tests/             # testes ponta a ponta (TODOS os testes ficam aqui)
 frontend/src/
+  router/            # index.tsx (monta <Routes>) + paths.ts (fonte única de paths)
+  app/               # convenção App Router: (public)/ e (protected)/ com layout.tsx + page.tsx
   services/api.ts    # único ponto de fetch. Token em memória + retry em 401.
   providers/         # AuthProvider (user, permissions, login/logout)
-  hooks/ components/ pages/
+  hooks/ components/
 infra/               # docker-compose.yml, nginx, .env (gitignored)
 ```
 
@@ -84,7 +86,11 @@ if errors.Is(err, service.ErrInvalidCredentials) {
 ## Frontend
 
 - Toda chamada HTTP passa por `services/api.ts` (`request()`), que renova o token em 401 automaticamente. Não use `fetch` direto em componentes.
-- Controle de permissão na UI: componente `Can` ou hook `usePermission`. Isso é cosmético — o backend decide.
+- **Rotas seguem convenção App Router**: página nova = `src/app/(protected)/<segmento>/page.tsx` (export default) registrada em `src/router/index.tsx`. Route groups `(public)`/`(protected)` não entram na URL. Layouts compartilhados são `layout.tsx` com `<Outlet />`.
+- Links e navegação **sempre** via `router/paths.ts` (`paths.users()`), nunca strings soltas.
+- **Guard duplo obrigatório** em rota com permissão: `RequirePermission` protege a rota (redireciona) e `Can` esconde o link/card. Ambos cosméticos — o backend decide.
+- Páginas admin entram com `lazy(() => import(...))` em `router/index.tsx`; o `Suspense` já existe no `ProtectedLayout`.
+- Dados de servidor nas páginas: TanStack Query (`useQuery`/`useMutation` + invalidação). Estado de sessão fica no `AuthProvider`.
 - Componentes funcionais, hooks para lógica reutilizável, Tailwind para estilo.
 
 ## Convenções gerais
