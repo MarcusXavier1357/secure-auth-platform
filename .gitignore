@@ -1,0 +1,10 @@
+# Dependências e builds
+node_modules/
+dist/
+backend/api
+backend/api.exe
+
+# Ambiente — nunca commitar secrets
+.env
+*.env
+!*env.example

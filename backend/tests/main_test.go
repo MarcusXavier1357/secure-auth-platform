@@ -1,0 +1,217 @@
+// Package tests contém os testes ponta a ponta da API.
+//
+// Pré-requisito: Postgres e Redis acessíveis (docker compose up -d postgres redis).
+// A suite cria um banco isolado `auth_test` e usa o Redis db 1, sem tocar nos
+// dados de desenvolvimento.
+package tests
+
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/uptrace/bun/driver/pgdriver"
+
+	"auth-backend/internal/app"
+)
+
+const (
+	adminEmail    = "admin@test.dev"
+	adminPassword = "AdminTest123!"
+)
+
+var (
+	// testApp tem rate limit alto para não interferir nos demais testes.
+	testApp *app.App
+	// rateLimitApp tem limite baixo (3) para testar o bloqueio de força bruta.
+	rateLimitApp *app.App
+)
+
+func TestMain(m *testing.M) {
+	adminDSN := getenv("TEST_PG_ADMIN_URL",
+		"postgres://auth:auth_dev_password@127.0.0.1:55432/auth?sslmode=disable")
+	testDSN := getenv("TEST_PG_URL",
+		"postgres://auth:auth_dev_password@127.0.0.1:55432/auth_test?sslmode=disable")
+	redisURL := getenv("TEST_REDIS_URL", "redis://127.0.0.1:6379/1")
+
+	if err := recreateTestDatabase(adminDSN); err != nil {
+		log.Fatalf("e2e tests require postgres+redis (run: docker compose up -d postgres redis): %v", err)
+	}
+	if err := flushTestRedis(redisURL); err != nil {
+		log.Fatalf("e2e tests require redis: %v", err)
+	}
+
+	baseCfg := app.Config{
+		DatabaseURL:     testDSN,
+		MigrationsPath:  "../migrations",
+		RedisURL:        redisURL,
+		RedisKeyPrefix:  "test:",
+		JWTSecret:       "e2e-test-secret",
+		AccessTTL:       15 * time.Minute,
+		RefreshTTL:      30 * 24 * time.Hour,
+		PermCacheTTL:    5 * time.Minute,
+		LoginRateLimit:  1000,
+		LoginRateWindow: 15 * time.Minute,
+		AdminEmail:      adminEmail,
+		AdminPassword:   adminPassword,
+		CookieSecure:    false,
+	}
+
+	var err error
+	testApp, err = app.New(baseCfg)
+	if err != nil {
+		log.Fatalf("failed to build test app: %v", err)
+	}
+	if err := testApp.SeedAdmin(context.Background()); err != nil {
+		log.Fatalf("failed to seed admin: %v", err)
+	}
+
+	rlCfg := baseCfg
+	rlCfg.RedisKeyPrefix = "testrl:"
+	rlCfg.LoginRateLimit = 3
+	rateLimitApp, err = app.New(rlCfg)
+	if err != nil {
+		log.Fatalf("failed to build rate limit app: %v", err)
+	}
+
+	code := m.Run()
+
+	testApp.Close()
+	rateLimitApp.Close()
+	os.Exit(code)
+}
+
+func recreateTestDatabase(adminDSN string) error {
+	db := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(adminDSN)))
+	defer func() { _ = db.Close() }()
+
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("ping postgres: %w", err)
+	}
+	if _, err := db.Exec("DROP DATABASE IF EXISTS auth_test WITH (FORCE)"); err != nil {
+		return fmt.Errorf("drop test database: %w", err)
+	}
+	if _, err := db.Exec("CREATE DATABASE auth_test"); err != nil {
+		return fmt.Errorf("create test database: %w", err)
+	}
+	return nil
+}
+
+func flushTestRedis(url string) error {
+	opts, err := redis.ParseURL(url)
+	if err != nil {
+		return err
+	}
+	rdb := redis.NewClient(opts)
+	defer func() { _ = rdb.Close() }()
+	return rdb.FlushDB(context.Background()).Err()
+}
+
+func getenv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// --- Client HTTP de teste ---
+
+// client mantém token e cookies entre requests, simulando um browser.
+type client struct {
+	t       *testing.T
+	app     *app.App
+	token   string
+	cookies map[string]*http.Cookie
+}
+
+func newClient(t *testing.T) *client {
+	return &client{t: t, app: testApp, cookies: map[string]*http.Cookie{}}
+}
+
+func newRateLimitClient(t *testing.T) *client {
+	return &client{t: t, app: rateLimitApp, cookies: map[string]*http.Cookie{}}
+}
+
+func (c *client) do(method, path string, body any) *http.Response {
+	c.t.Helper()
+
+	var reader io.Reader
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			c.t.Fatalf("marshal body: %v", err)
+		}
+		reader = bytes.NewReader(raw)
+	}
+
+	req := httptest.NewRequest(method, path, reader)
+	req.Header.Set("Content-Type", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	for _, ck := range c.cookies {
+		req.AddCookie(ck)
+	}
+
+	resp, err := c.app.Fiber.Test(req, -1)
+	if err != nil {
+		c.t.Fatalf("%s %s failed: %v", method, path, err)
+	}
+
+	for _, ck := range resp.Cookies() {
+		c.cookies[ck.Name] = ck
+	}
+	return resp
+}
+
+func (c *client) login(email, password string) *http.Response {
+	c.t.Helper()
+	resp := c.do("POST", "/auth/login", map[string]string{"email": email, "password": password})
+	if resp.StatusCode == http.StatusOK {
+		var body struct {
+			AccessToken string `json:"accessToken"`
+		}
+		decodeJSON(c.t, resp, &body)
+		c.token = body.AccessToken
+	}
+	return resp
+}
+
+func (c *client) mustLogin(email, password string) {
+	c.t.Helper()
+	resp := c.login(email, password)
+	if resp.StatusCode != http.StatusOK {
+		c.t.Fatalf("login as %s failed with status %d", email, resp.StatusCode)
+	}
+}
+
+func (c *client) refreshCookie() *http.Cookie {
+	return c.cookies["refresh_token"]
+}
+
+func decodeJSON(t *testing.T, resp *http.Response, target any) {
+	t.Helper()
+	defer func() { _ = resp.Body.Close() }()
+	if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+}
+
+func requireStatus(t *testing.T, resp *http.Response, want int) {
+	t.Helper()
+	if resp.StatusCode != want {
+		raw, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		t.Fatalf("expected status %d, got %d (body: %s)", want, resp.StatusCode, raw)
+	}
+}
