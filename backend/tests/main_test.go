@@ -24,6 +24,8 @@ import (
 
 	"auth-backend/cache"
 	"auth-backend/internal/app"
+	"auth-backend/internal/geoip"
+	"auth-backend/internal/password"
 	"auth-backend/internal/service"
 )
 
@@ -35,6 +37,7 @@ const (
 var (
 	testApp      *app.App
 	rateLimitApp *app.App
+	geoTestApp   *app.App
 	testJWTKeys  *service.JWTKeyPair
 )
 
@@ -51,6 +54,8 @@ func TestMain(m *testing.M) {
 	if err := flushTestRedis(redisURL); err != nil {
 		log.Fatalf("e2e tests require redis: %v", err)
 	}
+
+	password.SetParams(password.TestParams())
 
 	var err error
 	testJWTKeys, err = service.GenerateTestRSAKeyPair()
@@ -90,10 +95,28 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to build rate limit app: %v", err)
 	}
 
+	geoCfg := baseCfg
+	geoCfg.RedisKeyPrefix = "testgeo:"
+	geoCfg.GeoIPLookup = geoip.Mock{
+		Countries: map[string]string{
+			"203.0.113.1": "BR",
+			"203.0.113.2": "US",
+		},
+	}
+	geoCfg.ImpossibleTravelWindow = 30 * time.Minute
+	geoTestApp, err = app.New(geoCfg)
+	if err != nil {
+		log.Fatalf("failed to build geo test app: %v", err)
+	}
+	if err := geoTestApp.SeedAdmin(context.Background()); err != nil {
+		log.Fatalf("failed to seed geo test admin: %v", err)
+	}
+
 	code := m.Run()
 
 	testApp.Close()
 	rateLimitApp.Close()
+	geoTestApp.Close()
 	os.Exit(code)
 }
 
@@ -143,6 +166,10 @@ func newClient(t *testing.T) *client {
 
 func newRateLimitClient(t *testing.T) *client {
 	return &client{t: t, app: rateLimitApp, cookies: map[string]*http.Cookie{}}
+}
+
+func newGeoClient(t *testing.T) *client {
+	return &client{t: t, app: geoTestApp, cookies: map[string]*http.Cookie{}}
 }
 
 func (c *client) do(method, path string, body any) *http.Response {

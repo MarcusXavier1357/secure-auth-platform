@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 
 	"auth-backend/cache"
+	"auth-backend/internal/geoip"
 	"auth-backend/internal/models"
+	"auth-backend/internal/password"
 	"auth-backend/internal/repository"
 )
 
@@ -44,61 +45,73 @@ type AuthService struct {
 	users         *repository.UserRepository
 	sessions      *repository.SessionRepository
 	tieredLimiter *cache.TieredRateLimiter
+	lastLogin     *cache.LastLoginStore
+	geo           geoip.Lookup
 	audit         *AuditService
 
 	jwtPrivateKey *rsa.PrivateKey
 	jwtPublicKey  *rsa.PublicKey
 	accessTTL     time.Duration
 	refreshTTL    time.Duration
+	travelWindow  time.Duration
 }
 
 func NewAuthService(
 	users *repository.UserRepository,
 	sessions *repository.SessionRepository,
 	tieredLimiter *cache.TieredRateLimiter,
+	lastLogin *cache.LastLoginStore,
+	geo geoip.Lookup,
 	audit *AuditService,
 	keys *JWTKeyPair,
-	accessTTL, refreshTTL time.Duration,
+	accessTTL, refreshTTL, travelWindow time.Duration,
 ) *AuthService {
+	if geo == nil {
+		geo = geoip.Nop{}
+	}
+	if travelWindow == 0 {
+		travelWindow = 30 * time.Minute
+	}
 	return &AuthService{
 		users:         users,
 		sessions:      sessions,
 		tieredLimiter: tieredLimiter,
+		lastLogin:     lastLogin,
+		geo:           geo,
 		audit:         audit,
 		jwtPrivateKey: keys.Private,
 		jwtPublicKey:  keys.Public,
 		accessTTL:     accessTTL,
 		refreshTTL:    refreshTTL,
+		travelWindow:  travelWindow,
 	}
 }
 
-// Login aplica rate limit (antes do bcrypt), valida credenciais, cria a
+// Login aplica rate limit (antes do hash), valida credenciais, cria a
 // sessão no PostgreSQL e retorna o par de tokens.
-func (s *AuthService) Login(ctx context.Context, email, password, ip, userAgent string) (*TokenPair, error) {
+func (s *AuthService) Login(ctx context.Context, email, passwordPlain, ip, userAgent string) (*TokenPair, error) {
 	ipKey := cache.LoginIPKey(ip)
 	emailKey := cache.LoginEmailKey(email)
 
-	if blocked, retryAfter, err := s.tieredLimiter.Check(ctx, ipKey); err != nil {
+	if blocked, retryAfter, count, err := s.tieredLimiter.Check(ctx, ipKey); err != nil {
 		slog.Error("rate limiter unavailable during login", "error", err)
 		return nil, ErrRateLimitDown
 	} else if blocked {
-		s.audit.Log(ctx, nil, "login.failed", "auth", nil, nil,
-			map[string]any{"email": email, "ip": ip, "reason": "rate_limited", "retryAfterSec": retryAfter.Seconds()})
+		s.auditRateLimitBlock(ctx, email, ip, count, retryAfter)
 		return nil, ErrRateLimited
 	}
-	if blocked, _, err := s.tieredLimiter.Check(ctx, emailKey); err != nil {
+	if blocked, retryAfter, count, err := s.tieredLimiter.Check(ctx, emailKey); err != nil {
 		slog.Error("rate limiter unavailable during login", "error", err)
 		return nil, ErrRateLimitDown
 	} else if blocked {
-		s.audit.Log(ctx, nil, "login.failed", "auth", nil, nil,
-			map[string]any{"email": email, "ip": ip, "reason": "rate_limited"})
+		s.auditRateLimitBlock(ctx, email, ip, count, retryAfter)
 		return nil, ErrRateLimited
 	}
 
 	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password))
+			password.DummyVerify(passwordPlain)
 			s.auditLoginFailed(ctx, email, ip, "user_not_found")
 			return nil, ErrInvalidCredentials
 		}
@@ -106,14 +119,24 @@ func (s *AuthService) Login(ctx context.Context, email, password, ip, userAgent 
 	}
 
 	if !user.Active {
-		_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password))
+		password.DummyVerify(passwordPlain)
 		s.auditLoginFailed(ctx, email, ip, "user_inactive")
 		return nil, ErrInvalidCredentials
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+	needsRehash, err := password.Verify(user.PasswordHash, passwordPlain)
+	if err != nil {
 		s.auditLoginFailed(ctx, email, ip, "wrong_password")
 		return nil, ErrInvalidCredentials
+	}
+	if needsRehash {
+		newHash, err := password.Hash(passwordPlain)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.users.UpdatePasswordHash(ctx, user.ID, newHash); err != nil {
+			slog.Error("failed to rehash password to argon2id", "userId", user.ID, "error", err)
+		}
 	}
 
 	pair, err := s.createSession(ctx, user, ip, userAgent)
@@ -131,7 +154,64 @@ func (s *AuthService) Login(ctx context.Context, email, password, ip, userAgent 
 	s.audit.Log(ctx, &user.ID, "login.success", "auth", &user.ID, nil,
 		map[string]any{"email": email, "ip": ip, "sessionId": pair.SessionID})
 
+	s.checkImpossibleTravel(ctx, user.ID, ip)
+
 	return pair, nil
+}
+
+func (s *AuthService) checkImpossibleTravel(ctx context.Context, userID int64, ip string) {
+	if s.lastLogin == nil {
+		return
+	}
+
+	country, err := s.geo.CountryCode(ip)
+	if err != nil {
+		slog.Warn("geoip lookup failed", "ip", ip, "error", err)
+		return
+	}
+	if country == "" {
+		return
+	}
+
+	prev, err := s.lastLogin.Get(ctx, userID)
+	if err != nil {
+		slog.Warn("failed to read last login", "userId", userID, "error", err)
+	}
+	if prev != nil && prev.CountryCode != "" && prev.CountryCode != country {
+		elapsed := time.Since(prev.At)
+		if elapsed <= s.travelWindow {
+			s.audit.LogSecurityAlert(ctx, &userID, "impossible_travel", map[string]any{
+				"ip":           ip,
+				"country":      country,
+				"prevIp":       prev.IP,
+				"prevCountry":  prev.CountryCode,
+				"elapsedSec":   elapsed.Seconds(),
+				"windowMinutes": s.travelWindow.Minutes(),
+			})
+		}
+	}
+
+	if err := s.lastLogin.Set(ctx, userID, cache.LastLoginInfo{
+		CountryCode: country,
+		IP:          ip,
+		At:          time.Now(),
+	}); err != nil {
+		slog.Warn("failed to store last login", "userId", userID, "error", err)
+	}
+}
+
+func (s *AuthService) auditRateLimitBlock(ctx context.Context, email, ip string, count int64, retryAfter time.Duration) {
+	s.audit.Log(ctx, nil, "login.failed", "auth", nil, nil,
+		map[string]any{"email": email, "ip": ip, "reason": "rate_limited", "retryAfterSec": retryAfter.Seconds()})
+
+	if count >= s.tieredLimiter.MaxTierThreshold() {
+		s.audit.LogSecurityAlert(ctx, nil, "login_rate_limit", map[string]any{
+			"email":         email,
+			"ip":            ip,
+			"attemptCount":  count,
+			"retryAfterSec": retryAfter.Seconds(),
+		})
+	}
 }
 
 // Refresh valida o refresh token, revoga a sessão anterior, cria uma nova
@@ -142,7 +222,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 	session, err := s.sessions.FindActiveByTokenHash(ctx, tokenHash)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return s.handleRefreshMiss(ctx, tokenHash)
+			return s.handleRefreshMiss(ctx, tokenHash, ip)
 		}
 		return nil, err
 	}
@@ -168,7 +248,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 	return pair, nil
 }
 
-func (s *AuthService) handleRefreshMiss(ctx context.Context, tokenHash string) (*TokenPair, error) {
+func (s *AuthService) handleRefreshMiss(ctx context.Context, tokenHash, ip string) (*TokenPair, error) {
 	session, err := s.sessions.FindByTokenHash(ctx, tokenHash)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -185,6 +265,10 @@ func (s *AuthService) handleRefreshMiss(ctx context.Context, tokenHash string) (
 		}
 		s.audit.Log(ctx, &userID, "session.revoked", "session", &session.ID, nil,
 			map[string]any{"reason": "refresh_token_reuse", "sessionId": session.ID})
+		s.audit.LogSecurityAlert(ctx, &userID, "refresh_token_reuse", map[string]any{
+			"sessionId": session.ID,
+			"ip":        ip,
+		})
 		return nil, ErrTokenReuse
 	}
 
@@ -306,15 +390,6 @@ func (s *AuthService) auditLoginFailed(ctx context.Context, email, ip, reason st
 	s.audit.Log(ctx, nil, "login.failed", "auth", nil, nil,
 		map[string]any{"email": email, "ip": ip, "reason": reason})
 }
-
-// dummyPasswordHash — ver comentário no topo do arquivo original.
-var dummyPasswordHash = func() []byte {
-	hash, err := bcrypt.GenerateFromPassword([]byte("timing-equalizer-dummy"), bcrypt.DefaultCost)
-	if err != nil {
-		panic(fmt.Sprintf("generating dummy bcrypt hash: %v", err))
-	}
-	return hash
-}()
 
 func generateRefreshToken() (string, error) {
 	raw := make([]byte, 32)

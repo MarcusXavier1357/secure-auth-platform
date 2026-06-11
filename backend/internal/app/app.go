@@ -6,18 +6,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/uptrace/bun"
-	"golang.org/x/crypto/bcrypt"
 
 	"auth-backend/cache"
 	"auth-backend/database"
 	"auth-backend/internal/audit"
 	"auth-backend/internal/auth"
+	"auth-backend/internal/geoip"
 	"auth-backend/internal/models"
+	"auth-backend/internal/password"
 	"auth-backend/internal/permissions"
 	"auth-backend/internal/repository"
 	"auth-backend/internal/service"
@@ -48,6 +50,11 @@ type Config struct {
 	AdminPassword string
 
 	CookieSecure bool
+
+	GeoIPDBPath            string
+	GeoIPLookup            geoip.Lookup // testes: mock injetado
+	ImpossibleTravelWindow time.Duration
+	Argon2Memory           uint32 // 0 = default (65536 KiB)
 }
 
 // Retenção e frequência da limpeza de sessões expiradas/revogadas.
@@ -75,10 +82,17 @@ type App struct {
 	permRepo    *repository.PermissionRepository
 	sessionRepo *repository.SessionRepository
 	auditSvc    *service.AuditService
+	geoCloser   io.Closer
 	stopCleanup chan struct{}
 }
 
 func New(cfg Config) (*App, error) {
+	if cfg.Argon2Memory > 0 {
+		p := password.DefaultParams
+		p.Memory = cfg.Argon2Memory
+		password.SetParams(p)
+	}
+
 	if err := database.RunMigrations(cfg.DatabaseURL, cfg.MigrationsPath); err != nil {
 		return nil, fmt.Errorf("migrations: %w", err)
 	}
@@ -124,15 +138,27 @@ func New(cfg Config) (*App, error) {
 
 	permCache := cache.NewPermissionCache(redisClient, cfg.PermCacheTTL)
 	tieredLimiter := cache.NewTieredRateLimiter(redisClient, tiers, counterTTL)
+	lastLoginStore := cache.NewLastLoginStore(redisClient, 0)
+
+	geoLookup, geoCloser, err := resolveGeoIP(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("geoip: %w", err)
+	}
 
 	auditSvc := service.NewAuditService(auditRepo)
 	permSvc := service.NewPermissionService(permRepo, permCache, auditSvc)
-	authSvc := service.NewAuthService(userRepo, sessionRepo, tieredLimiter, auditSvc, jwtKeys, cfg.AccessTTL, cfg.RefreshTTL)
+	authSvc := service.NewAuthService(
+		userRepo, sessionRepo, tieredLimiter, lastLoginStore, geoLookup, auditSvc,
+		jwtKeys, cfg.AccessTTL, cfg.RefreshTTL, cfg.ImpossibleTravelWindow,
+	)
 	userSvc := service.NewUserService(userRepo, sessionRepo, permSvc, auditSvc)
 
 	fiberApp := fiber.New(fiber.Config{
-		AppName:      "auth-api",
-		ErrorHandler: errorHandler,
+		AppName:                 "auth-api",
+		ErrorHandler:            errorHandler,
+		ProxyHeader:             fiber.HeaderXForwardedFor,
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          []string{"0.0.0.0/0", "::/0"},
 	})
 
 	fiberApp.Get("/health", func(c *fiber.Ctx) error {
@@ -164,6 +190,7 @@ func New(cfg Config) (*App, error) {
 		permRepo:    permRepo,
 		sessionRepo: sessionRepo,
 		auditSvc:    auditSvc,
+		geoCloser:   geoCloser,
 		stopCleanup: make(chan struct{}),
 	}
 	go application.runSessionCleanup()
@@ -226,7 +253,7 @@ func (a *App) SeedAdmin(ctx context.Context) error {
 		return errors.New("ADMIN_PASSWORD is required to seed the first admin user")
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(a.cfg.AdminPassword), bcrypt.DefaultCost)
+	hash, err := password.Hash(a.cfg.AdminPassword)
 	if err != nil {
 		return err
 	}
@@ -240,7 +267,7 @@ func (a *App) SeedAdmin(ctx context.Context) error {
 	admin := &models.User{
 		Name:         "Administrador",
 		Email:        a.cfg.AdminEmail,
-		PasswordHash: string(hash),
+		PasswordHash: hash,
 		RoleID:       adminRoleID,
 		Active:       true,
 	}
@@ -257,7 +284,26 @@ func (a *App) SeedAdmin(ctx context.Context) error {
 
 func (a *App) Close() {
 	close(a.stopCleanup)
+	if a.geoCloser != nil {
+		if err := a.geoCloser.Close(); err != nil {
+			slog.Warn("closing geoip database", "error", err)
+		}
+	}
 	if err := a.DB.Close(); err != nil {
 		slog.Warn("closing db", "error", err)
 	}
+}
+
+func resolveGeoIP(cfg Config) (geoip.Lookup, io.Closer, error) {
+	if cfg.GeoIPLookup != nil {
+		return cfg.GeoIPLookup, nil, nil
+	}
+	if cfg.GeoIPDBPath == "" {
+		return geoip.Nop{}, nil, nil
+	}
+	mm, err := geoip.OpenMaxMind(cfg.GeoIPDBPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	return mm, mm, nil
 }

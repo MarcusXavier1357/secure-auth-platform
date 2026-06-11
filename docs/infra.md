@@ -40,8 +40,11 @@ Config em `infra/nginx/nginx.conf`:
 - `/api/*` → `http://api:8080/*` (o prefixo `/api` é removido no proxy_pass)
 - `/*` → `http://frontend:80` (SPA; o nginx do frontend faz fallback para `index.html` — React Router)
 - Repassa `X-Real-IP` / `X-Forwarded-For` (usados pelo rate limit de login)
+- **Security headers** (plano3): `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` e **CSP** (`default-src 'self'`, `script-src 'self'`, etc.) — aplicados a `/api/` e à SPA
 
 **HTTPS**: o config atual escuta em HTTP puro — aceitável apenas em dev. Em produção: `listen 443 ssl` com certificados, redirect 80→443 e `COOKIE_SECURE=true` na API (sem isso o cookie de refresh viaja em claro).
+
+**CSP e dev local**: os headers acima valem na stack Docker (`http://localhost` via nginx na porta 80). O `npm run dev` do frontend (Vite com HMR) **não** passa por esse nginx — não espere CSP no `:5173`.
 
 ## Imagens
 
@@ -72,6 +75,9 @@ Arquivo `infra/.env` (gitignored; template em `infra/env.example`).
 | `PERMISSIONS_CACHE_TTL` | `5m` | |
 | `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW` | `5` / `15m` | |
 | `REDIS_KEY_PREFIX` | `auth:` | Para Redis compartilhado |
+| `GEOIP_DB_PATH` | vazio | GeoLite2 `.mmdb` para detecção de viagem impossível |
+| `IMPOSSIBLE_TRAVEL_WINDOW_MINUTES` | `30` | Janela em minutos para alerta `impossible_travel` |
+| `ARGON2_MEMORY` | `65536` | KiB de memória do Argon2id (opcional) |
 
 ## Operação
 

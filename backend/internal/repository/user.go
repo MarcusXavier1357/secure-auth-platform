@@ -68,6 +68,22 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	return err
 }
 
+func (r *UserRepository) UpdatePasswordHash(ctx context.Context, userID int64, hash string) error {
+	res, err := r.db.NewUpdate().
+		Model((*models.User)(nil)).
+		Set("password_hash = ?", hash).
+		Set("updated_at = ?", time.Now()).
+		Where("id = ?", userID).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	user.UpdatedAt = time.Now()
 	res, err := r.db.NewUpdate().

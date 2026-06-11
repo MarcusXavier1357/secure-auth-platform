@@ -38,3 +38,12 @@ func (s *AuditService) Log(ctx context.Context, userID *int64, action, entity st
 func (s *AuditService) List(ctx context.Context, limit, offset int) ([]models.AuditLog, error) {
 	return s.repo.List(ctx, limit, offset)
 }
+
+// LogSecurityAlert registra evento security.alert com reason e metadados.
+func (s *AuditService) LogSecurityAlert(ctx context.Context, userID *int64, reason string, metadata map[string]any) {
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+	metadata["reason"] = reason
+	s.Log(ctx, userID, "security.alert", "security", nil, nil, metadata)
+}

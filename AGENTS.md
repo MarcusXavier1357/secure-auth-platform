@@ -4,7 +4,7 @@ Sistema de autenticação e autorização. Especificação completa em [plano.md
 
 ## Stack
 
-- **Backend**: Go + Fiber, Bun (ORM), go-redis, golang-migrate, JWT, bcrypt
+- **Backend**: Go + Fiber, Bun (ORM), go-redis, golang-migrate, JWT, Argon2id (bcrypt legado migrado no login)
 - **Frontend**: React 19 + Vite, Tailwind 4, TanStack Query, React Router
 - **Infra**: Docker Compose (`infra/`), Nginx, PostgreSQL 16, Redis 7
 
@@ -58,10 +58,10 @@ if errors.Is(err, service.ErrInvalidCredentials) {
 
 - Frontend é não-confiável: toda autorização é revalidada no backend via `RequirePermission`.
 - Permissões **nunca** entram no payload do JWT — sempre Redis/Postgres.
-- Senhas: somente bcrypt. Refresh tokens: somente hash SHA-256 no banco, valor puro só no cookie `HttpOnly` + `SameSite=Strict`.
+- Senhas: Argon2id (PHC); hashes bcrypt legados são regravados no login bem-sucedido. Refresh tokens: somente hash SHA-256 no banco, valor puro só no cookie `HttpOnly` + `SameSite=Strict`.
 - Access token no frontend vive **apenas em memória** — nunca localStorage/sessionStorage.
-- Rate limit roda **antes** do bcrypt no login. Redis indisponível no login → `503` (nunca pular o rate limit).
-- Caminhos de falha do login sem usuário executam bcrypt dummy (`dummyPasswordHash` em `auth.go`) para igualar timing e impedir enumeração de emails. Mantenha esse padrão em qualquer novo caminho de falha.
+- Rate limit roda **antes** da verificação de senha no login. Redis indisponível no login → `503` (nunca pular o rate limit).
+- Caminhos de falha do login sem usuário executam `password.DummyVerify` para igualar timing e impedir enumeração de emails. Mantenha esse padrão em qualquer novo caminho de falha.
 - Usuário não pode desativar a própria conta (`ErrCannotDeactivateSelf` → `409`) — previne lockout do último admin.
 - JWT RS256: chaves em `keys/private.pem` + `keys/public.pem` (gitignored). Docker gera no build; dev local gera com openssl.
 - Secrets só via env vars (`ADMIN_PASSWORD` não tem default). Nunca hardcode chaves PEM.

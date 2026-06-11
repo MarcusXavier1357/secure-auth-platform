@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"strconv"
+
 	"auth-backend/internal/app"
 )
 
@@ -17,20 +19,23 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
 	cfg := app.Config{
-		DatabaseURL:       mustEnv("DATABASE_URL"),
-		MigrationsPath:    env("MIGRATIONS_PATH", "migrations"),
-		RedisURL:          env("REDIS_URL", "redis://localhost:6379/0"),
-		RedisKeyPrefix:    env("REDIS_KEY_PREFIX", "auth:"),
-		JWTPrivateKeyPath: env("JWT_PRIVATE_KEY_PATH", "keys/private.pem"),
-		JWTPublicKeyPath:  env("JWT_PUBLIC_KEY_PATH", "keys/public.pem"),
-		AccessTTL:         envDuration("ACCESS_TOKEN_TTL", 15*time.Minute),
-		RefreshTTL:        envDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour),
-		PermCacheTTL:      envDuration("PERMISSIONS_CACHE_TTL", 5*time.Minute),
-		LoginRateTiers:    app.DefaultLoginRateTiers(),
-		LoginCounterTTL:   24 * time.Hour,
-		AdminEmail:        env("ADMIN_EMAIL", "admin@local.dev"),
-		AdminPassword:     os.Getenv("ADMIN_PASSWORD"),
-		CookieSecure:      env("COOKIE_SECURE", "false") == "true",
+		DatabaseURL:            mustEnv("DATABASE_URL"),
+		MigrationsPath:         env("MIGRATIONS_PATH", "migrations"),
+		RedisURL:               env("REDIS_URL", "redis://localhost:6379/0"),
+		RedisKeyPrefix:         env("REDIS_KEY_PREFIX", "auth:"),
+		JWTPrivateKeyPath:      env("JWT_PRIVATE_KEY_PATH", "keys/private.pem"),
+		JWTPublicKeyPath:       env("JWT_PUBLIC_KEY_PATH", "keys/public.pem"),
+		AccessTTL:              envDuration("ACCESS_TOKEN_TTL", 15*time.Minute),
+		RefreshTTL:             envDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour),
+		PermCacheTTL:           envDuration("PERMISSIONS_CACHE_TTL", 5*time.Minute),
+		LoginRateTiers:         app.DefaultLoginRateTiers(),
+		LoginCounterTTL:        24 * time.Hour,
+		AdminEmail:             env("ADMIN_EMAIL", "admin@local.dev"),
+		AdminPassword:          os.Getenv("ADMIN_PASSWORD"),
+		CookieSecure:           env("COOKIE_SECURE", "false") == "true",
+		GeoIPDBPath:            env("GEOIP_DB_PATH", ""),
+		ImpossibleTravelWindow: envMinutes("IMPOSSIBLE_TRAVEL_WINDOW_MINUTES", 30),
+		Argon2Memory:           envUint32("ARGON2_MEMORY", 0),
 	}
 	port := env("PORT", "8080")
 
@@ -94,4 +99,24 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 		slog.Warn("invalid duration env var, using default", "key", key, "default", fallback.String())
 	}
 	return fallback
+}
+
+func envUint32(key string, fallback uint32) uint32 {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			return uint32(n)
+		}
+		slog.Warn("invalid uint env var, using default", "key", key, "default", fallback)
+	}
+	return fallback
+}
+
+func envMinutes(key string, fallback int) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Minute
+		}
+		slog.Warn("invalid minutes env var, using default", "key", key, "default", fallback)
+	}
+	return time.Duration(fallback) * time.Minute
 }

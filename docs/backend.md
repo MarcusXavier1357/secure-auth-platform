@@ -1,6 +1,6 @@
 # Backend
 
-API em **Go + Fiber**, com Bun (ORM), go-redis, golang-migrate, JWT e bcrypt.
+API em **Go + Fiber**, com Bun (ORM), go-redis, golang-migrate, JWT RS256 e Argon2id (bcrypt legado migrado no login).
 
 ## Arquitetura em camadas
 
@@ -51,8 +51,8 @@ sequenceDiagram
         A-->>C: 503 (nunca pular o rate limit)
     end
     A->>P: busca usuário por email
-    Note over A: usuário inexistente/inativo → bcrypt dummy (anti-timing) → 401
-    A->>A: bcrypt.CompareHashAndPassword
+    Note over A: usuário inexistente/inativo → Argon2id dummy (anti-timing) → 401
+    A->>A: password.Verify (Argon2id ou bcrypt legado)
     A->>P: INSERT session (hash SHA-256 do refresh token)
     A->>P: audit login.success
     A-->>C: accessToken (JWT 15min) + cookie HttpOnly com refresh token (30d)
@@ -106,7 +106,7 @@ Regras de negócio notáveis: email validado com `net/mail`; senha mínima de 8 
 
 ## Testes
 
-Suite ponta a ponta em `backend/tests/`: app real via `app.New` + `Fiber.Test()`, Postgres (banco `auth_test` recriado por execução) e Redis (db 1) reais. Cobre login, rotação de refresh (nova sessão + detecção de reuse), fingerprint de sessão, logout, rate limit escalonado, wildcards de permissão, JWT RS256, 401/403, grant/revoke, desativação e auditoria expandida.
+Suite ponta a ponta em `backend/tests/`: app real via `app.New` + `Fiber.Test()`, Postgres (banco `auth_test` recriado por execução) e Redis (db 1) reais. Cobre login, rotação de refresh (nova sessão + detecção de reuse), fingerprint de sessão, logout, rate limit escalonado, wildcards de permissão, JWT RS256, `security.alert`, viagem impossível (GeoIP mock), migração Argon2id, 401/403, grant/revoke, desativação e auditoria expandida.
 
 ```bash
 cd infra && docker compose up -d postgres redis

@@ -24,23 +24,35 @@ func NewTieredRateLimiter(client *Client, tiers []RateTier, counterTTL time.Dura
 	return &TieredRateLimiter{client: client, tiers: tiers, counterTTL: counterTTL}
 }
 
+// MaxTierThreshold retorna o maior limiar configurado.
+func (r *TieredRateLimiter) MaxTierThreshold() int64 {
+	var max int64
+	for _, tier := range r.tiers {
+		if tier.Threshold > max {
+			max = tier.Threshold
+		}
+	}
+	return max
+}
+
 // Check incrementa o contador e retorna se a chave está bloqueada.
-// retryAfter indica quanto tempo aguardar quando bloqueado.
-func (r *TieredRateLimiter) Check(ctx context.Context, key string) (blocked bool, retryAfter time.Duration, err error) {
+// retryAfter indica quanto tempo aguardar quando bloqueado; count é o total de tentativas.
+func (r *TieredRateLimiter) Check(ctx context.Context, key string) (blocked bool, retryAfter time.Duration, count int64, err error) {
 	fullKey := r.client.key(key)
 	blockKey := r.client.key(key + ":block")
 
 	ttl, err := r.client.rdb.TTL(ctx, blockKey).Result()
 	if err != nil {
-		return false, 0, err
+		return false, 0, 0, err
 	}
 	if ttl > 0 {
-		return true, ttl, nil
+		stored, _ := r.client.rdb.Get(ctx, fullKey).Int64()
+		return true, ttl, stored, nil
 	}
 
-	count, err := r.client.rdb.Incr(ctx, fullKey).Result()
+	count, err = r.client.rdb.Incr(ctx, fullKey).Result()
 	if err != nil {
-		return false, 0, err
+		return false, 0, 0, err
 	}
 	if count == 1 {
 		r.client.rdb.Expire(ctx, fullKey, r.counterTTL)
@@ -49,11 +61,11 @@ func (r *TieredRateLimiter) Check(ctx context.Context, key string) (blocked bool
 	block := r.blockDuration(count)
 	if block > 0 {
 		if err := r.client.rdb.Set(ctx, blockKey, "1", block).Err(); err != nil {
-			return false, 0, err
+			return false, 0, 0, err
 		}
-		return true, block, nil
+		return true, block, count, nil
 	}
-	return false, 0, nil
+	return false, 0, count, nil
 }
 
 func (r *TieredRateLimiter) blockDuration(count int64) time.Duration {

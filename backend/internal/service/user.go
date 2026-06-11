@@ -5,9 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"auth-backend/internal/models"
+	"auth-backend/internal/password"
 	"auth-backend/internal/repository"
 )
 
@@ -62,7 +61,7 @@ func (s *UserService) Create(ctx context.Context, actorID int64, input CreateUse
 		return nil, err
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	hash, err := password.Hash(input.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +69,7 @@ func (s *UserService) Create(ctx context.Context, actorID int64, input CreateUse
 	user := &models.User{
 		Name:         input.Name,
 		Email:        input.Email,
-		PasswordHash: string(hash),
+		PasswordHash: hash,
 		RoleID:       input.RoleID,
 		Active:       true,
 	}
@@ -118,11 +117,11 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 		user.Active = *input.Active
 	}
 	if input.Password != nil {
-		hash, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
+		hash, err := password.Hash(*input.Password)
 		if err != nil {
 			return nil, err
 		}
-		user.PasswordHash = string(hash)
+		user.PasswordHash = hash
 	}
 
 	if err := s.users.Update(ctx, user); err != nil {
