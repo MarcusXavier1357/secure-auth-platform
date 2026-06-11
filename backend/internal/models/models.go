@@ -43,21 +43,26 @@ type Permission struct {
 type UserPermission struct {
 	bun.BaseModel `bun:"table:user_permissions,alias:up"`
 
-	UserID       int64       `bun:"user_id,pk"`
-	User         *User       `bun:"rel:belongs-to,join:user_id=id"`
-	PermissionID int64       `bun:"permission_id,pk"`
-	Permission   *Permission `bun:"rel:belongs-to,join:permission_id=id"`
+	UserID       int64 `bun:"user_id,pk"`
+	PermissionID int64 `bun:"permission_id,pk"`
+
+	User       *User       `bun:"rel:belongs-to,join:user_id=id"`
+	Permission *Permission `bun:"rel:belongs-to,join:permission_id=id"`
 }
 
 type Session struct {
 	bun.BaseModel `bun:"table:sessions,alias:s"`
 
-	ID               int64     `bun:"id,pk,autoincrement" json:"id"`
-	UserID           int64     `bun:"user_id,notnull" json:"userId"`
-	RefreshTokenHash string    `bun:"refresh_token_hash,notnull" json:"-"`
-	ExpiresAt        time.Time `bun:"expires_at,notnull" json:"expiresAt"`
-	Revoked          bool      `bun:"revoked,notnull,default:false" json:"revoked"`
-	CreatedAt        time.Time `bun:"created_at,notnull,default:current_timestamp" json:"createdAt"`
+	ID               int64      `bun:"id,pk,autoincrement" json:"id"`
+	UserID           int64      `bun:"user_id,notnull" json:"userId"`
+	RefreshTokenHash string     `bun:"refresh_token_hash,notnull" json:"-"`
+	ExpiresAt        time.Time  `bun:"expires_at,notnull" json:"expiresAt"`
+	Revoked          bool       `bun:"revoked,notnull,default:false" json:"revoked"`
+	RevokedAt        *time.Time `bun:"revoked_at" json:"revokedAt,omitempty"`
+	IPAddress        *string    `bun:"ip_address" json:"ipAddress,omitempty"`
+	UserAgent        *string    `bun:"user_agent" json:"userAgent,omitempty"`
+	LastActivityAt   *time.Time `bun:"last_activity_at" json:"lastActivityAt,omitempty"`
+	CreatedAt        time.Time  `bun:"created_at,notnull,default:current_timestamp" json:"createdAt"`
 }
 
 type AuditLog struct {

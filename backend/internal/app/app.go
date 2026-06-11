@@ -32,13 +32,17 @@ type Config struct {
 	RedisURL       string
 	RedisKeyPrefix string
 
-	JWTSecret  string
-	AccessTTL  time.Duration
-	RefreshTTL time.Duration
+	JWTPrivateKeyPath  string
+	JWTPublicKeyPath   string
+	JWTKeyPair         *service.JWTKeyPair // testes: par em memória
+	AccessTTL          time.Duration
+	RefreshTTL         time.Duration
 
-	PermCacheTTL    time.Duration
-	LoginRateLimit  int64
-	LoginRateWindow time.Duration
+	PermCacheTTL time.Duration
+
+	// Tiers de rate limit de login (plano2 fase 4).
+	LoginRateTiers  []cache.RateTier
+	LoginCounterTTL time.Duration
 
 	AdminEmail    string
 	AdminPassword string
@@ -52,6 +56,15 @@ const (
 	sessionRetention       = 7 * 24 * time.Hour
 )
 
+// DefaultLoginRateTiers conforme plano2.md.
+func DefaultLoginRateTiers() []cache.RateTier {
+	return []cache.RateTier{
+		{Threshold: 5, Block: time.Minute},
+		{Threshold: 10, Block: 15 * time.Minute},
+		{Threshold: 20, Block: 24 * time.Hour},
+	}
+}
+
 type App struct {
 	Fiber *fiber.App
 	DB    *bun.DB
@@ -61,6 +74,7 @@ type App struct {
 	userRepo    *repository.UserRepository
 	permRepo    *repository.PermissionRepository
 	sessionRepo *repository.SessionRepository
+	auditSvc    *service.AuditService
 	stopCleanup chan struct{}
 }
 
@@ -82,20 +96,38 @@ func New(cfg Config) (*App, error) {
 		return nil, fmt.Errorf("redis ping: %w", err)
 	}
 
-	// Repositórios
+	var jwtKeys *service.JWTKeyPair
+	switch {
+	case cfg.JWTKeyPair != nil:
+		jwtKeys = cfg.JWTKeyPair
+	default:
+		var err error
+		jwtKeys, err = service.LoadJWTKeys(cfg.JWTPrivateKeyPath, cfg.JWTPublicKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("jwt keys: %w", err)
+		}
+	}
+
+	tiers := cfg.LoginRateTiers
+	if len(tiers) == 0 {
+		tiers = DefaultLoginRateTiers()
+	}
+	counterTTL := cfg.LoginCounterTTL
+	if counterTTL == 0 {
+		counterTTL = 24 * time.Hour
+	}
+
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	permRepo := repository.NewPermissionRepository(db)
 	auditRepo := repository.NewAuditRepository(db)
 
-	// Cache
 	permCache := cache.NewPermissionCache(redisClient, cfg.PermCacheTTL)
-	rateLimiter := cache.NewRateLimiter(redisClient, cfg.LoginRateLimit, cfg.LoginRateWindow)
+	tieredLimiter := cache.NewTieredRateLimiter(redisClient, tiers, counterTTL)
 
-	// Services
 	auditSvc := service.NewAuditService(auditRepo)
 	permSvc := service.NewPermissionService(permRepo, permCache, auditSvc)
-	authSvc := service.NewAuthService(userRepo, sessionRepo, rateLimiter, auditSvc, cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
+	authSvc := service.NewAuthService(userRepo, sessionRepo, tieredLimiter, auditSvc, jwtKeys, cfg.AccessTTL, cfg.RefreshTTL)
 	userSvc := service.NewUserService(userRepo, sessionRepo, permSvc, auditSvc)
 
 	fiberApp := fiber.New(fiber.Config{
@@ -114,7 +146,7 @@ func New(cfg Config) (*App, error) {
 	})
 
 	routes.Setup(fiberApp, routes.Deps{
-		AuthHandler:  auth.NewHandler(authSvc, cfg.CookieSecure, cfg.LoginRateWindow),
+		AuthHandler:  auth.NewHandler(authSvc, cfg.CookieSecure, 15*time.Minute),
 		UserHandler:  users.NewHandler(userSvc, permSvc),
 		PermHandler:  permissions.NewHandler(permSvc),
 		AuditHandler: audit.NewHandler(auditSvc),
@@ -131,6 +163,7 @@ func New(cfg Config) (*App, error) {
 		userRepo:    userRepo,
 		permRepo:    permRepo,
 		sessionRepo: sessionRepo,
+		auditSvc:    auditSvc,
 		stopCleanup: make(chan struct{}),
 	}
 	go application.runSessionCleanup()
@@ -138,9 +171,6 @@ func New(cfg Config) (*App, error) {
 	return application, nil
 }
 
-// errorHandler centraliza o tratamento de erros HTTP. Erros internos nunca
-// vazam para o cliente — apenas mensagens de *fiber.Error, que são controladas
-// pelos handlers.
 func errorHandler(c *fiber.Ctx, err error) error {
 	var fiberErr *fiber.Error
 	if errors.As(err, &fiberErr) {
@@ -153,8 +183,6 @@ func errorHandler(c *fiber.Ctx, err error) error {
 		JSON(fiber.Map{"error": "internal server error"})
 }
 
-// runSessionCleanup remove periodicamente sessões expiradas ou revogadas há
-// mais tempo que a retenção — sem isso a tabela sessions cresce sem limite.
 func (a *App) runSessionCleanup() {
 	ticker := time.NewTicker(sessionCleanupInterval)
 	defer ticker.Stop()
@@ -170,18 +198,21 @@ func (a *App) runSessionCleanup() {
 }
 
 func (a *App) cleanupSessions() {
-	deleted, err := a.sessionRepo.DeleteExpired(context.Background(), sessionRetention)
+	deleted, expired, err := a.sessionRepo.DeleteExpired(context.Background(), sessionRetention)
 	if err != nil {
 		slog.Error("session cleanup failed", "error", err)
 		return
+	}
+	for _, sess := range expired {
+		sid := sess.ID
+		a.auditSvc.Log(context.Background(), &sess.UserID, "session.expired", "session", &sid, nil,
+			map[string]any{"sessionId": sess.ID, "reason": "cleanup"})
 	}
 	if deleted > 0 {
 		slog.Info("expired sessions deleted", "count", deleted)
 	}
 }
 
-// SeedAdmin cria o usuário administrador inicial (com todas as permissões e
-// role Admin) apenas quando o banco ainda não possui usuários.
 func (a *App) SeedAdmin(ctx context.Context) error {
 	count, err := a.userRepo.Count(ctx)
 	if err != nil {

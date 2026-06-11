@@ -63,7 +63,8 @@ if errors.Is(err, service.ErrInvalidCredentials) {
 - Rate limit roda **antes** do bcrypt no login. Redis indisponível no login → `503` (nunca pular o rate limit).
 - Caminhos de falha do login sem usuário executam bcrypt dummy (`dummyPasswordHash` em `auth.go`) para igualar timing e impedir enumeração de emails. Mantenha esse padrão em qualquer novo caminho de falha.
 - Usuário não pode desativar a própria conta (`ErrCannotDeactivateSelf` → `409`) — previne lockout do último admin.
-- Secrets só via env vars (`JWT_SECRET`, `ADMIN_PASSWORD` não têm default). Nunca hardcode.
+- JWT RS256: chaves em `keys/private.pem` + `keys/public.pem` (gitignored). Docker gera no build; dev local gera com openssl.
+- Secrets só via env vars (`ADMIN_PASSWORD` não tem default). Nunca hardcode chaves PEM.
 - Containers rodam como usuário não-root (`USER app` no Dockerfile do backend).
 
 ## Auditoria e cache
@@ -109,7 +110,7 @@ if errors.Is(err, service.ErrInvalidCredentials) {
 cd infra && docker compose up -d --build      # exige .env (veja env.example)
 
 # Dev backend
-cd backend && go run ./cmd/api                # exige DATABASE_URL, JWT_SECRET, ADMIN_PASSWORD
+cd backend && go run ./cmd/api                # exige DATABASE_URL, chaves JWT, ADMIN_PASSWORD
 
 # Dev frontend (proxy /api → localhost:8080)
 cd frontend && npm run dev

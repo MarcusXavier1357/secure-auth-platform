@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -18,19 +17,20 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
 	cfg := app.Config{
-		DatabaseURL:     mustEnv("DATABASE_URL"),
-		MigrationsPath:  env("MIGRATIONS_PATH", "migrations"),
-		RedisURL:        env("REDIS_URL", "redis://localhost:6379/0"),
-		RedisKeyPrefix:  env("REDIS_KEY_PREFIX", "auth:"),
-		JWTSecret:       mustEnv("JWT_SECRET"),
-		AccessTTL:       envDuration("ACCESS_TOKEN_TTL", 15*time.Minute),
-		RefreshTTL:      envDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour),
-		PermCacheTTL:    envDuration("PERMISSIONS_CACHE_TTL", 5*time.Minute),
-		LoginRateLimit:  int64(envInt("LOGIN_RATE_LIMIT", 5)),
-		LoginRateWindow: envDuration("LOGIN_RATE_WINDOW", 15*time.Minute),
-		AdminEmail:      env("ADMIN_EMAIL", "admin@local.dev"),
-		AdminPassword:   os.Getenv("ADMIN_PASSWORD"),
-		CookieSecure:    env("COOKIE_SECURE", "false") == "true",
+		DatabaseURL:       mustEnv("DATABASE_URL"),
+		MigrationsPath:    env("MIGRATIONS_PATH", "migrations"),
+		RedisURL:          env("REDIS_URL", "redis://localhost:6379/0"),
+		RedisKeyPrefix:    env("REDIS_KEY_PREFIX", "auth:"),
+		JWTPrivateKeyPath: env("JWT_PRIVATE_KEY_PATH", "keys/private.pem"),
+		JWTPublicKeyPath:  env("JWT_PUBLIC_KEY_PATH", "keys/public.pem"),
+		AccessTTL:         envDuration("ACCESS_TOKEN_TTL", 15*time.Minute),
+		RefreshTTL:        envDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour),
+		PermCacheTTL:      envDuration("PERMISSIONS_CACHE_TTL", 5*time.Minute),
+		LoginRateTiers:    app.DefaultLoginRateTiers(),
+		LoginCounterTTL:   24 * time.Hour,
+		AdminEmail:        env("ADMIN_EMAIL", "admin@local.dev"),
+		AdminPassword:     os.Getenv("ADMIN_PASSWORD"),
+		CookieSecure:      env("COOKIE_SECURE", "false") == "true",
 	}
 	port := env("PORT", "8080")
 
@@ -92,16 +92,6 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 			return d
 		}
 		slog.Warn("invalid duration env var, using default", "key", key, "default", fallback.String())
-	}
-	return fallback
-}
-
-func envInt(key string, fallback int) int {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-		slog.Warn("invalid int env var, using default", "key", key, "default", fallback)
 	}
 	return fallback
 }

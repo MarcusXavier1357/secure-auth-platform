@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -24,70 +25,71 @@ var (
 	ErrRateLimited        = errors.New("rate limited")
 	ErrRateLimitDown      = errors.New("rate limiter unavailable")
 	ErrInvalidSession     = errors.New("invalid session")
+	ErrTokenReuse         = errors.New("refresh token reuse detected")
 )
 
-// dummyPasswordHash é comparado nos caminhos de falha sem usuário (inexistente
-// ou inativo) para igualar o tempo de resposta ao caminho com bcrypt real —
-// sem isso, a diferença de timing permite enumerar emails cadastrados.
-var dummyPasswordHash = func() []byte {
-	hash, err := bcrypt.GenerateFromPassword([]byte("timing-equalizer-dummy"), bcrypt.DefaultCost)
-	if err != nil {
-		panic(fmt.Sprintf("generating dummy bcrypt hash: %v", err))
-	}
-	return hash
-}()
+type TokenClaims struct {
+	UserID    int64
+	SessionID int64
+}
 
 type TokenPair struct {
 	AccessToken      string
 	RefreshToken     string
 	RefreshExpiresAt time.Time
+	SessionID        int64
 }
 
 type AuthService struct {
-	users       *repository.UserRepository
-	sessions    *repository.SessionRepository
-	rateLimiter *cache.RateLimiter
-	audit       *AuditService
+	users         *repository.UserRepository
+	sessions      *repository.SessionRepository
+	tieredLimiter *cache.TieredRateLimiter
+	audit         *AuditService
 
-	jwtSecret  []byte
-	accessTTL  time.Duration
-	refreshTTL time.Duration
+	jwtPrivateKey *rsa.PrivateKey
+	jwtPublicKey  *rsa.PublicKey
+	accessTTL     time.Duration
+	refreshTTL    time.Duration
 }
 
 func NewAuthService(
 	users *repository.UserRepository,
 	sessions *repository.SessionRepository,
-	rateLimiter *cache.RateLimiter,
+	tieredLimiter *cache.TieredRateLimiter,
 	audit *AuditService,
-	jwtSecret string,
+	keys *JWTKeyPair,
 	accessTTL, refreshTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
-		users:       users,
-		sessions:    sessions,
-		rateLimiter: rateLimiter,
-		audit:       audit,
-		jwtSecret:   []byte(jwtSecret),
-		accessTTL:   accessTTL,
-		refreshTTL:  refreshTTL,
+		users:         users,
+		sessions:      sessions,
+		tieredLimiter: tieredLimiter,
+		audit:         audit,
+		jwtPrivateKey: keys.Private,
+		jwtPublicKey:  keys.Public,
+		accessTTL:     accessTTL,
+		refreshTTL:    refreshTTL,
 	}
 }
 
 // Login aplica rate limit (antes do bcrypt), valida credenciais, cria a
 // sessão no PostgreSQL e retorna o par de tokens.
-func (s *AuthService) Login(ctx context.Context, email, password, ip string) (*TokenPair, error) {
-	ipKey := "ratelimit:login:ip:" + ip
-	emailKey := "ratelimit:login:email:" + email
+func (s *AuthService) Login(ctx context.Context, email, password, ip, userAgent string) (*TokenPair, error) {
+	ipKey := cache.LoginIPKey(ip)
+	emailKey := cache.LoginEmailKey(email)
 
-	ipCount, ipErr := s.rateLimiter.Increment(ctx, ipKey)
-	emailCount, emailErr := s.rateLimiter.Increment(ctx, emailKey)
-	if ipErr != nil || emailErr != nil {
-		// Redis indisponível: rejeitar com 503 para não abrir brecha de brute force.
-		slog.Error("rate limiter unavailable during login",
-			"ipError", ipErr, "emailError", emailErr)
+	if blocked, retryAfter, err := s.tieredLimiter.Check(ctx, ipKey); err != nil {
+		slog.Error("rate limiter unavailable during login", "error", err)
 		return nil, ErrRateLimitDown
+	} else if blocked {
+		s.audit.Log(ctx, nil, "login.failed", "auth", nil, nil,
+			map[string]any{"email": email, "ip": ip, "reason": "rate_limited", "retryAfterSec": retryAfter.Seconds()})
+		return nil, ErrRateLimited
 	}
-	if s.rateLimiter.Exceeded(ipCount) || s.rateLimiter.Exceeded(emailCount) {
+	if blocked, _, err := s.tieredLimiter.Check(ctx, emailKey); err != nil {
+		slog.Error("rate limiter unavailable during login", "error", err)
+		return nil, ErrRateLimitDown
+	} else if blocked {
 		s.audit.Log(ctx, nil, "login.failed", "auth", nil, nil,
 			map[string]any{"email": email, "ip": ip, "reason": "rate_limited"})
 		return nil, ErrRateLimited
@@ -114,29 +116,33 @@ func (s *AuthService) Login(ctx context.Context, email, password, ip string) (*T
 		return nil, ErrInvalidCredentials
 	}
 
-	pair, err := s.createSession(ctx, user)
+	pair, err := s.createSession(ctx, user, ip, userAgent)
 	if err != nil {
 		return nil, err
 	}
 
-	// Login OK limpa o contador por email; o de IP permanece (janela expira sozinha).
-	if err := s.rateLimiter.Reset(ctx, emailKey); err != nil {
+	if err := s.tieredLimiter.Reset(ctx, emailKey); err != nil {
 		slog.Warn("failed to reset login rate limit", "email", email, "error", err)
+	}
+	if err := s.tieredLimiter.Reset(ctx, ipKey); err != nil {
+		slog.Warn("failed to reset login rate limit", "ip", ip, "error", err)
 	}
 
 	s.audit.Log(ctx, &user.ID, "login.success", "auth", &user.ID, nil,
-		map[string]any{"email": email, "ip": ip})
+		map[string]any{"email": email, "ip": ip, "sessionId": pair.SessionID})
 
 	return pair, nil
 }
 
-// Refresh valida a sessão pelo hash do refresh token, rotaciona o token
-// (invalida o anterior na mesma sessão) e emite novo access token.
-func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
-	session, err := s.sessions.FindActiveByTokenHash(ctx, hashToken(refreshToken))
+// Refresh valida o refresh token, revoga a sessão anterior, cria uma nova
+// e detecta reutilização de token já rotacionado.
+func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent string) (*TokenPair, error) {
+	tokenHash := hashToken(refreshToken)
+
+	session, err := s.sessions.FindActiveByTokenHash(ctx, tokenHash)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return nil, ErrInvalidSession
+			return s.handleRefreshMiss(ctx, tokenHash)
 		}
 		return nil, err
 	}
@@ -146,26 +152,43 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenP
 		return nil, ErrInvalidSession
 	}
 
-	newRefresh, err := generateRefreshToken()
-	if err != nil {
-		return nil, err
-	}
-	newExpiry := time.Now().Add(s.refreshTTL)
-
-	if err := s.sessions.RotateToken(ctx, session.ID, hashToken(newRefresh), newExpiry); err != nil {
+	oldSessionID := session.ID
+	if err := s.sessions.RevokeWithTimestamp(ctx, session.ID); err != nil {
 		return nil, err
 	}
 
-	accessToken, err := s.generateAccessToken(user)
+	pair, err := s.createSession(ctx, user, ip, userAgent)
 	if err != nil {
 		return nil, err
 	}
 
-	return &TokenPair{
-		AccessToken:      accessToken,
-		RefreshToken:     newRefresh,
-		RefreshExpiresAt: newExpiry,
-	}, nil
+	s.audit.Log(ctx, &user.ID, "session.refreshed", "session", &oldSessionID, nil,
+		map[string]any{"oldSessionId": oldSessionID, "newSessionId": pair.SessionID})
+
+	return pair, nil
+}
+
+func (s *AuthService) handleRefreshMiss(ctx context.Context, tokenHash string) (*TokenPair, error) {
+	session, err := s.sessions.FindByTokenHash(ctx, tokenHash)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrInvalidSession
+		}
+		return nil, err
+	}
+
+	// Token conhecido mas sessão revogada/expirada = possível roubo (reuse).
+	if session.Revoked || session.ExpiresAt.Before(time.Now()) {
+		userID := session.UserID
+		if err := s.sessions.RevokeAllByUser(ctx, userID); err != nil {
+			slog.Error("failed to revoke all sessions after token reuse", "userId", userID, "error", err)
+		}
+		s.audit.Log(ctx, &userID, "session.revoked", "session", &session.ID, nil,
+			map[string]any{"reason": "refresh_token_reuse", "sessionId": session.ID})
+		return nil, ErrTokenReuse
+	}
+
+	return nil, ErrInvalidSession
 }
 
 // Logout revoga a sessão associada ao refresh token.
@@ -173,87 +196,125 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 	session, err := s.sessions.FindActiveByTokenHash(ctx, hashToken(refreshToken))
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return nil // sessão já inválida; logout é idempotente
+			return nil
 		}
 		return err
 	}
 
-	if err := s.sessions.Revoke(ctx, session.ID); err != nil {
+	if err := s.sessions.RevokeWithTimestamp(ctx, session.ID); err != nil {
 		return err
 	}
 
-	s.audit.Log(ctx, &session.UserID, "logout", "auth", &session.UserID, nil, nil)
+	s.audit.Log(ctx, &session.UserID, "logout", "auth", &session.UserID, nil,
+		map[string]any{"sessionId": session.ID})
+	s.audit.Log(ctx, &session.UserID, "session.revoked", "session", &session.ID, nil,
+		map[string]any{"reason": "logout"})
 	return nil
 }
 
-// ValidateAccessToken valida assinatura e expiração do JWT e retorna o userId.
-func (s *AuthService) ValidateAccessToken(tokenString string) (int64, error) {
+// ValidateAccessToken valida assinatura RS256 e retorna userId + sessionId.
+func (s *AuthService) ValidateAccessToken(tokenString string) (TokenClaims, error) {
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
-		return s.jwtSecret, nil
+		return s.jwtPublicKey, nil
 	})
 	if err != nil || !token.Valid {
-		return 0, errors.New("invalid token")
+		return TokenClaims{}, errors.New("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return 0, errors.New("invalid claims")
+		return TokenClaims{}, errors.New("invalid claims")
 	}
 	sub, ok := claims["sub"].(float64)
 	if !ok {
-		return 0, errors.New("invalid subject")
+		return TokenClaims{}, errors.New("invalid subject")
 	}
-	return int64(sub), nil
+	sid, ok := claims["sid"].(float64)
+	if !ok {
+		return TokenClaims{}, errors.New("invalid session id")
+	}
+	return TokenClaims{UserID: int64(sub), SessionID: int64(sid)}, nil
 }
 
-func (s *AuthService) createSession(ctx context.Context, user *models.User) (*TokenPair, error) {
+// TouchSession atualiza last_activity_at da sessão (chamado pelo middleware Auth).
+func (s *AuthService) TouchSession(ctx context.Context, sessionID int64) {
+	if err := s.sessions.TouchActivity(ctx, sessionID); err != nil {
+		slog.Warn("failed to touch session activity", "sessionId", sessionID, "error", err)
+	}
+}
+
+func (s *AuthService) createSession(ctx context.Context, user *models.User, ip, userAgent string) (*TokenPair, error) {
 	refreshToken, err := generateRefreshToken()
 	if err != nil {
 		return nil, err
 	}
 	expiresAt := time.Now().Add(s.refreshTTL)
+	now := time.Now()
+
+	var ipPtr, uaPtr *string
+	if ip != "" {
+		ipPtr = &ip
+	}
+	if userAgent != "" {
+		uaPtr = &userAgent
+	}
 
 	session := &models.Session{
 		UserID:           user.ID,
 		RefreshTokenHash: hashToken(refreshToken),
 		ExpiresAt:        expiresAt,
+		IPAddress:        ipPtr,
+		UserAgent:        uaPtr,
+		LastActivityAt:   &now,
 	}
 	if err := s.sessions.Create(ctx, session); err != nil {
 		return nil, err
 	}
 
-	accessToken, err := s.generateAccessToken(user)
+	accessToken, err := s.generateAccessToken(user, session.ID)
 	if err != nil {
 		return nil, err
 	}
+
+	s.audit.Log(ctx, &user.ID, "session.created", "session", &session.ID, nil,
+		map[string]any{"sessionId": session.ID, "ip": ip})
 
 	return &TokenPair{
 		AccessToken:      accessToken,
 		RefreshToken:     refreshToken,
 		RefreshExpiresAt: expiresAt,
+		SessionID:        session.ID,
 	}, nil
 }
 
-// generateAccessToken emite o JWT. Permissões não entram no payload —
-// são sempre consultadas via Redis/PostgreSQL.
-func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
+func (s *AuthService) generateAccessToken(user *models.User, sessionID int64) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
 		"sub":   user.ID,
+		"sid":   sessionID,
 		"email": user.Email,
 		"iat":   now.Unix(),
 		"exp":   now.Add(s.accessTTL).Unix(),
 	}
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(s.jwtSecret)
+	return jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(s.jwtPrivateKey)
 }
 
 func (s *AuthService) auditLoginFailed(ctx context.Context, email, ip, reason string) {
 	s.audit.Log(ctx, nil, "login.failed", "auth", nil, nil,
 		map[string]any{"email": email, "ip": ip, "reason": reason})
 }
+
+// dummyPasswordHash — ver comentário no topo do arquivo original.
+var dummyPasswordHash = func() []byte {
+	hash, err := bcrypt.GenerateFromPassword([]byte("timing-equalizer-dummy"), bcrypt.DefaultCost)
+	if err != nil {
+		panic(fmt.Sprintf("generating dummy bcrypt hash: %v", err))
+	}
+	return hash
+}()
 
 func generateRefreshToken() (string, error) {
 	raw := make([]byte, 32)
@@ -263,8 +324,6 @@ func generateRefreshToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
-// hashToken usa SHA-256 — permite lookup direto pelo hash, ao contrário do
-// bcrypt. O token tem 256 bits de entropia, então rainbow tables não se aplicam.
 func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])

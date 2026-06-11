@@ -22,7 +22,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/uptrace/bun/driver/pgdriver"
 
+	"auth-backend/cache"
 	"auth-backend/internal/app"
+	"auth-backend/internal/service"
 )
 
 const (
@@ -31,10 +33,9 @@ const (
 )
 
 var (
-	// testApp tem rate limit alto para não interferir nos demais testes.
-	testApp *app.App
-	// rateLimitApp tem limite baixo (3) para testar o bloqueio de força bruta.
+	testApp      *app.App
 	rateLimitApp *app.App
+	testJWTKeys  *service.JWTKeyPair
 )
 
 func TestMain(m *testing.M) {
@@ -51,23 +52,28 @@ func TestMain(m *testing.M) {
 		log.Fatalf("e2e tests require redis: %v", err)
 	}
 
+	var err error
+	testJWTKeys, err = service.GenerateTestRSAKeyPair()
+	if err != nil {
+		log.Fatalf("generate test jwt keys: %v", err)
+	}
+
 	baseCfg := app.Config{
 		DatabaseURL:     testDSN,
 		MigrationsPath:  "../migrations",
 		RedisURL:        redisURL,
 		RedisKeyPrefix:  "test:",
-		JWTSecret:       "e2e-test-secret",
+		JWTKeyPair:      testJWTKeys,
 		AccessTTL:       15 * time.Minute,
 		RefreshTTL:      30 * 24 * time.Hour,
 		PermCacheTTL:    5 * time.Minute,
-		LoginRateLimit:  1000,
-		LoginRateWindow: 15 * time.Minute,
+		LoginRateTiers:  app.DefaultLoginRateTiers(),
+		LoginCounterTTL: 24 * time.Hour,
 		AdminEmail:      adminEmail,
 		AdminPassword:   adminPassword,
 		CookieSecure:    false,
 	}
 
-	var err error
 	testApp, err = app.New(baseCfg)
 	if err != nil {
 		log.Fatalf("failed to build test app: %v", err)
@@ -78,7 +84,7 @@ func TestMain(m *testing.M) {
 
 	rlCfg := baseCfg
 	rlCfg.RedisKeyPrefix = "testrl:"
-	rlCfg.LoginRateLimit = 3
+	rlCfg.LoginRateTiers = []cache.RateTier{{Threshold: 4, Block: 15 * time.Minute}}
 	rateLimitApp, err = app.New(rlCfg)
 	if err != nil {
 		log.Fatalf("failed to build rate limit app: %v", err)
@@ -124,9 +130,6 @@ func getenv(key, fallback string) string {
 	return fallback
 }
 
-// --- Client HTTP de teste ---
-
-// client mantém token e cookies entre requests, simulando um browser.
 type client struct {
 	t       *testing.T
 	app     *app.App
@@ -143,6 +146,10 @@ func newRateLimitClient(t *testing.T) *client {
 }
 
 func (c *client) do(method, path string, body any) *http.Response {
+	return c.doWithHeaders(method, path, body, nil)
+}
+
+func (c *client) doWithHeaders(method, path string, body any, extraHeaders map[string]string) *http.Response {
 	c.t.Helper()
 
 	var reader io.Reader
@@ -156,6 +163,9 @@ func (c *client) do(method, path string, body any) *http.Response {
 
 	req := httptest.NewRequest(method, path, reader)
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range extraHeaders {
+		req.Header.Set(k, v)
+	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}

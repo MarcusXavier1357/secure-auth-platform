@@ -100,7 +100,9 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 		"roleId": user.RoleID, "active": user.Active,
 	}
 
+	wasActive := user.Active
 	deactivated := false
+	activated := false
 	if input.Name != nil {
 		user.Name = *input.Name
 	}
@@ -112,6 +114,7 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 	}
 	if input.Active != nil {
 		deactivated = user.Active && !*input.Active
+		activated = !user.Active && *input.Active
 		user.Active = *input.Active
 	}
 	if input.Password != nil {
@@ -140,6 +143,15 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 			"name": user.Name, "email": user.Email,
 			"roleId": user.RoleID, "active": user.Active,
 		})
+
+	if deactivated && wasActive {
+		s.audit.Log(ctx, &actorID, "user.deactivated", "user", &userID, oldData,
+			map[string]any{"active": false})
+	}
+	if activated {
+		s.audit.Log(ctx, &actorID, "user.activated", "user", &userID, oldData,
+			map[string]any{"active": true})
+	}
 
 	return user, nil
 }

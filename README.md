@@ -31,7 +31,7 @@ copy env.example .env
 cp env.example .env
 ```
 
-Defina ao menos `JWT_SECRET` e `ADMIN_PASSWORD` no `.env` (obrigatórios, sem default) e suba o stack:
+Defina ao menos `ADMIN_PASSWORD` no `.env` (obrigatório, sem default) e suba o stack (JWT RS256: chaves geradas na imagem Docker):
 
 ```bash
 docker compose up -d --build
@@ -54,7 +54,7 @@ cd infra
 docker compose up -d postgres redis
 ```
 
-Backend (precisa das envs `DATABASE_URL`, `JWT_SECRET`, `ADMIN_PASSWORD`):
+Backend (precisa das envs `DATABASE_URL`, chaves JWT RS256, `ADMIN_PASSWORD`):
 
 ```bash
 cd backend

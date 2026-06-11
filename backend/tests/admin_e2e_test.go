@@ -256,3 +256,24 @@ func TestAuditLogsRecordCriticalActions(t *testing.T) {
 		}
 	}
 }
+
+func TestWildcardUsersModuleGrantsManage(t *testing.T) {
+	admin := newClient(t)
+	admin.mustLogin(adminEmail, adminPassword)
+
+	user := createUser(t, admin, "Wildcard User", "wildcard@test.dev", "Senha12345!")
+	wildcardID := findPermissionID(t, admin, "users.*")
+
+	resp := admin.do("POST", fmt.Sprintf("/users/%d/permissions", user.ID),
+		map[string]int64{"permissionId": wildcardID})
+	requireStatus(t, resp, http.StatusNoContent)
+
+	u := newClient(t)
+	u.mustLogin(user.Email, "Senha12345!")
+
+	resp = u.do("GET", "/users", nil)
+	requireStatus(t, resp, http.StatusOK)
+
+	resp = u.do("GET", "/audit-logs", nil)
+	requireStatus(t, resp, http.StatusForbidden)
+}

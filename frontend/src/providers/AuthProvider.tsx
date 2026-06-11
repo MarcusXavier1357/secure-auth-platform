@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, setAccessToken, tryRefresh, type User } from "../services/api";
+import { matchPermission } from "../utils/permission";
 
 interface AuthState {
   user: User | null;
@@ -55,7 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const hasPermission = useCallback((code: string) => permissions.includes(code), [permissions]);
+  const hasPermission = useCallback(
+    (code: string) => matchPermission(permissions, code),
+    [permissions],
+  );
 
   return (
     <AuthContext.Provider value={{ user, permissions, loading, login, logout, hasPermission }}>

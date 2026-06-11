@@ -33,7 +33,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "email and password are required")
 	}
 
-	pair, err := h.auth.Login(c.Context(), req.Email, req.Password, c.IP())
+	pair, err := h.auth.Login(c.Context(), req.Email, req.Password, c.IP(), c.Get("User-Agent"))
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrRateLimited):
@@ -58,9 +58,9 @@ func (h *Handler) Refresh(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "missing refresh token")
 	}
 
-	pair, err := h.auth.Refresh(c.Context(), refreshToken)
+	pair, err := h.auth.Refresh(c.Context(), refreshToken, c.IP(), c.Get("User-Agent"))
 	if err != nil {
-		if errors.Is(err, service.ErrInvalidSession) {
+		if errors.Is(err, service.ErrInvalidSession) || errors.Is(err, service.ErrTokenReuse) {
 			h.clearRefreshCookie(c)
 			return fiber.NewError(fiber.StatusUnauthorized, "invalid session")
 		}

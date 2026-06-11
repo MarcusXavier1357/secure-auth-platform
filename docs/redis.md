@@ -77,7 +77,11 @@ O cache é invalidado (não esperando o TTL) quando:
 
 Esquecer a invalidação em um fluxo novo é **bug de segurança** (usuário mantém acesso por até 5 minutos).
 
-## Fluxo 2 — rate limit de login (fixed window)
+## Fluxo 2 — rate limit de login (escalonado)
+
+Faixas padrão (plano2): 5 tentativas → bloqueio 1 min; 10 → 15 min; 20 → 24 h. Chaves `login:ip:{ip}` e `login:email:{email}` (com prefixo `auth:`).
+
+### Diagrama (simplificado)
 
 Roda **antes** do bcrypt — ataques de força bruta não pagam o custo do hash.
 

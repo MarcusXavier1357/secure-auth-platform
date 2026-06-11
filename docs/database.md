@@ -76,11 +76,19 @@ Roles **não concedem permissões**. Servem apenas para organização, relatóri
 
 ### `permissions` — o que o usuário pode fazer
 
-Permissões são atribuídas **diretamente ao usuário** (não via role). Formato do code: `recurso.acao`. Seed atual (3 — só as com rotas implementadas):
+Permissões são atribuídas **diretamente ao usuário** (não via role). Formato do code: `recurso.acao` ou wildcards (`users.*`, `*`). Seed atual:
 
 ```
-users.manage    permissions.manage    audit_logs.read
+users.manage    permissions.manage    audit_logs.read    users.*    *
 ```
+
+### `sessions` — colunas de segurança (plano2)
+
+| Coluna | Uso |
+|---|---|
+| `revoked_at` | Timestamp da revogação (rotação de refresh) |
+| `ip_address`, `user_agent` | Fingerprint no login/refresh |
+| `last_activity_at` | Atualizado a cada request autenticada (claim `sid` no JWT) |
 
 ### `user_permissions` — junção N:N
 

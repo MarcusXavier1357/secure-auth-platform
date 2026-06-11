@@ -40,45 +40,104 @@ func (r *SessionRepository) FindActiveByTokenHash(ctx context.Context, tokenHash
 	return session, err
 }
 
-// RotateToken substitui o hash do refresh token na mesma sessão (rotação).
-func (r *SessionRepository) RotateToken(ctx context.Context, sessionID int64, newHash string, newExpiry time.Time) error {
+// FindByTokenHash busca qualquer sessão pelo hash (inclui revogadas/expiradas).
+func (r *SessionRepository) FindByTokenHash(ctx context.Context, tokenHash string) (*models.Session, error) {
+	session := new(models.Session)
+	err := r.db.NewSelect().
+		Model(session).
+		Where("s.refresh_token_hash = ?", tokenHash).
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return session, err
+}
+
+func (r *SessionRepository) FindByID(ctx context.Context, id int64) (*models.Session, error) {
+	session := new(models.Session)
+	err := r.db.NewSelect().
+		Model(session).
+		Where("s.id = ?", id).
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return session, err
+}
+
+func (r *SessionRepository) RevokeWithTimestamp(ctx context.Context, sessionID int64) error {
+	now := time.Now()
 	_, err := r.db.NewUpdate().
 		Model((*models.Session)(nil)).
-		Set("refresh_token_hash = ?", newHash).
-		Set("expires_at = ?", newExpiry).
+		Set("revoked = ?", true).
+		Set("revoked_at = ?", now).
 		Where("id = ?", sessionID).
+		Where("revoked = ?", false).
 		Exec(ctx)
 	return err
 }
 
-func (r *SessionRepository) Revoke(ctx context.Context, sessionID int64) error {
+func (r *SessionRepository) TouchActivity(ctx context.Context, sessionID int64) error {
 	_, err := r.db.NewUpdate().
 		Model((*models.Session)(nil)).
-		Set("revoked = ?", true).
+		Set("last_activity_at = ?", time.Now()).
 		Where("id = ?", sessionID).
+		Where("revoked = ?", false).
 		Exec(ctx)
 	return err
+}
+
+func (r *SessionRepository) CountByUserID(ctx context.Context, userID int64) (int, error) {
+	count, err := r.db.NewSelect().
+		Model((*models.Session)(nil)).
+		Where("user_id = ?", userID).
+		Count(ctx)
+	return count, err
+}
+
+func (r *SessionRepository) CountActiveByUserID(ctx context.Context, userID int64) (int, error) {
+	count, err := r.db.NewSelect().
+		Model((*models.Session)(nil)).
+		Where("user_id = ?", userID).
+		Where("revoked = ?", false).
+		Where("expires_at > ?", time.Now()).
+		Count(ctx)
+	return count, err
 }
 
 // DeleteExpired remove sessões expiradas ou revogadas há mais tempo que a
-// retenção. Retorna o número de linhas removidas.
-func (r *SessionRepository) DeleteExpired(ctx context.Context, retention time.Duration) (int64, error) {
+// retenção. Retorna as sessões removidas para auditoria.
+func (r *SessionRepository) DeleteExpired(ctx context.Context, retention time.Duration) (int64, []models.Session, error) {
 	cutoff := time.Now().Add(-retention)
+
+	var expired []models.Session
+	err := r.db.NewSelect().
+		Model(&expired).
+		Where("expires_at < ?", cutoff).
+		WhereOr("revoked = ? AND COALESCE(revoked_at, created_at) < ?", true, cutoff).
+		Scan(ctx)
+	if err != nil {
+		return 0, nil, err
+	}
+
 	res, err := r.db.NewDelete().
 		Model((*models.Session)(nil)).
 		Where("expires_at < ?", cutoff).
-		WhereOr("revoked = ? AND created_at < ?", true, cutoff).
+		WhereOr("revoked = ? AND COALESCE(revoked_at, created_at) < ?", true, cutoff).
 		Exec(ctx)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	return res.RowsAffected()
+	n, _ := res.RowsAffected()
+	return n, expired, nil
 }
 
 func (r *SessionRepository) RevokeAllByUser(ctx context.Context, userID int64) error {
+	now := time.Now()
 	_, err := r.db.NewUpdate().
 		Model((*models.Session)(nil)).
 		Set("revoked = ?", true).
+		Set("revoked_at = ?", now).
 		Where("user_id = ?", userID).
 		Where("revoked = ?", false).
 		Exec(ctx)

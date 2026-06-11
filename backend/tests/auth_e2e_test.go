@@ -1,10 +1,12 @@
 package tests
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHealth(t *testing.T) {
@@ -94,9 +96,9 @@ func TestMeReturnsUserAndPermissions(t *testing.T) {
 	if body.User.Email != adminEmail {
 		t.Errorf("expected email %s, got %s", adminEmail, body.User.Email)
 	}
-	// O seed concede as 3 permissões ativas ao admin.
-	if len(body.Permissions) != 3 {
-		t.Errorf("expected 3 permissions for admin, got %d", len(body.Permissions))
+	// O seed concede todas as permissões (inclui wildcard *).
+	if len(body.Permissions) != 5 {
+		t.Errorf("expected 5 permissions for admin, got %d", len(body.Permissions))
 	}
 }
 
@@ -122,7 +124,11 @@ func TestRefreshRotatesToken(t *testing.T) {
 		t.Fatal("refresh token must rotate — same value returned")
 	}
 
-	// O token antigo deve ter sido invalidado pela rotação.
+	// O token novo ainda renova antes de testar reuse do antigo.
+	resp = c.do("POST", "/auth/refresh", nil)
+	requireStatus(t, resp, http.StatusOK)
+
+	// Reuso do token antigo (já rotacionado) dispara revogação em massa.
 	req := httptest.NewRequest("POST", "/auth/refresh", nil)
 	req.AddCookie(&oldCookie)
 	oldResp, err := testApp.Fiber.Test(req, -1)
@@ -130,10 +136,94 @@ func TestRefreshRotatesToken(t *testing.T) {
 		t.Fatalf("refresh with old cookie failed: %v", err)
 	}
 	requireStatus(t, oldResp, http.StatusUnauthorized)
+}
 
-	// O token novo continua válido.
-	resp = c.do("POST", "/auth/refresh", nil)
+func TestRefreshCreatesNewSessionRow(t *testing.T) {
+	c := newClient(t)
+	c.mustLogin(adminEmail, adminPassword)
+
+	before := countSessions(t)
+
+	resp := c.do("POST", "/auth/refresh", nil)
 	requireStatus(t, resp, http.StatusOK)
+
+	after := countSessions(t)
+	if after != before+1 {
+		t.Errorf("expected session count +1 after refresh, before=%d after=%d", before, after)
+	}
+}
+
+func TestRefreshTokenReuseRevokesAllSessions(t *testing.T) {
+	c := newClient(t)
+	c.mustLogin(adminEmail, adminPassword)
+	oldCookie := *c.refreshCookie()
+
+	resp := c.do("POST", "/auth/refresh", nil)
+	requireStatus(t, resp, http.StatusOK)
+
+	// Reuso do token antigo deve falhar e revogar todas as sessões do usuário.
+	req := httptest.NewRequest("POST", "/auth/refresh", nil)
+	req.AddCookie(&oldCookie)
+	reuseResp, err := testApp.Fiber.Test(req, -1)
+	if err != nil {
+		t.Fatalf("reuse refresh: %v", err)
+	}
+	requireStatus(t, reuseResp, http.StatusUnauthorized)
+
+	// Sessão nova também foi revogada pelo reuse detection.
+	req2 := httptest.NewRequest("POST", "/auth/refresh", nil)
+	req2.AddCookie(c.refreshCookie())
+	newResp, err := testApp.Fiber.Test(req2, -1)
+	if err != nil {
+		t.Fatalf("refresh after reuse: %v", err)
+	}
+	requireStatus(t, newResp, http.StatusUnauthorized)
+}
+
+func TestLoginStoresSessionFingerprint(t *testing.T) {
+	c := newClient(t)
+	resp := c.doWithHeaders("POST", "/auth/login",
+		map[string]string{"email": adminEmail, "password": adminPassword},
+		map[string]string{"User-Agent": "TestBrowser/1.0"},
+	)
+	requireStatus(t, resp, http.StatusOK)
+
+	var body struct {
+		AccessToken string `json:"accessToken"`
+	}
+	decodeJSON(t, resp, &body)
+	c.token = body.AccessToken
+
+	var session struct {
+		IPAddress      *string    `bun:"ip_address"`
+		UserAgent      *string    `bun:"user_agent"`
+		LastActivityAt *time.Time `bun:"last_activity_at"`
+	}
+	err := testApp.DB.NewSelect().
+		TableExpr("sessions").
+		Column("ip_address", "user_agent", "last_activity_at").
+		Where("revoked = ?", false).
+		Order("id DESC").
+		Limit(1).
+		Scan(context.Background(), &session)
+	if err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if session.UserAgent == nil || *session.UserAgent != "TestBrowser/1.0" {
+		t.Errorf("expected user agent stored, got %v", session.UserAgent)
+	}
+	if session.LastActivityAt == nil {
+		t.Error("expected last_activity_at on login")
+	}
+}
+
+func countSessions(t *testing.T) int {
+	t.Helper()
+	var n int
+	if err := testApp.DB.NewRaw("SELECT COUNT(*)::int FROM sessions").Scan(context.Background(), &n); err != nil {
+		t.Fatalf("count sessions: %v", err)
+	}
+	return n
 }
 
 func TestRefreshWithoutCookie(t *testing.T) {
@@ -163,7 +253,7 @@ func TestLogoutRevokesSession(t *testing.T) {
 func TestLoginRateLimit(t *testing.T) {
 	c := newRateLimitClient(t)
 
-	// Limite da app de teste é 3 por janela (IP e email).
+	// Tier de teste bloqueia na 4ª tentativa.
 	for i := 1; i <= 3; i++ {
 		resp := c.login("brute@test.dev", "senha-errada")
 		requireStatus(t, resp, http.StatusUnauthorized)

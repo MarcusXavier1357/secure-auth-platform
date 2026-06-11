@@ -62,7 +62,7 @@ Arquivo `infra/.env` (gitignored; template em `infra/env.example`).
 
 | Variável | Default | Observação |
 |---|---|---|
-| `JWT_SECRET` | **sem default** | Obrigatória — compose falha sem ela |
+| `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | `/app/keys/*.pem` na imagem Docker | RS256 — chaves geradas no build da imagem |
 | `ADMIN_PASSWORD` | **sem default** | Obrigatória — senha do seed do admin |
 | `ADMIN_EMAIL` | `admin@local.dev` | |
 | `POSTGRES_USER/PASSWORD/DB` | `auth`/`auth_dev_password`/`auth` | Trocar fora de dev |

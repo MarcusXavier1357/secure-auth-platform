@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"log/slog"
-	"slices"
-
 	"auth-backend/cache"
 	"auth-backend/internal/models"
 	"auth-backend/internal/repository"
@@ -31,7 +29,7 @@ func (s *PermissionService) HasPermission(ctx context.Context, userID int64, cod
 		if err != nil {
 			return false, err
 		}
-		return slices.Contains(codes, code), nil
+		return matchPermission(codes, code), nil
 	}
 
 	if !found {
@@ -44,7 +42,7 @@ func (s *PermissionService) HasPermission(ctx context.Context, userID int64, cod
 		}
 	}
 
-	return slices.Contains(codes, code), nil
+	return matchPermission(codes, code), nil
 }
 
 func (s *PermissionService) ListAll(ctx context.Context) ([]models.Permission, error) {
@@ -60,7 +58,7 @@ func (s *PermissionService) Grant(ctx context.Context, actorID, userID, permissi
 		return err
 	}
 	s.invalidateCache(ctx, userID)
-	s.audit.Log(ctx, &actorID, "permission.granted", "user_permission", &userID,
+	s.audit.Log(ctx, &actorID, "permission.granted", "user_permissions", &userID,
 		nil, map[string]any{"userId": userID, "permissionId": permissionID})
 	return nil
 }
@@ -70,7 +68,7 @@ func (s *PermissionService) Revoke(ctx context.Context, actorID, userID, permiss
 		return err
 	}
 	s.invalidateCache(ctx, userID)
-	s.audit.Log(ctx, &actorID, "permission.revoked", "user_permission", &userID,
+	s.audit.Log(ctx, &actorID, "permission.revoked", "user_permissions", &userID,
 		map[string]any{"userId": userID, "permissionId": permissionID}, nil)
 	return nil
 }

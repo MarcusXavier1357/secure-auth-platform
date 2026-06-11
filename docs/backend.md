@@ -69,7 +69,7 @@ sequenceDiagram
 
 | | Access | Refresh |
 |---|---|---|
-| Formato | JWT HS256 (`sub`, `email`, `iat`, `exp`) | 32 bytes aleatórios, base64url |
+| Formato | JWT RS256 (`sub`, `sid`, `email`, `iat`, `exp`) | 32 bytes aleatórios, base64url |
 | Validade | 15 min | 30 dias (renovado a cada rotação) |
 | Armazenamento | Memória do frontend | Cookie `HttpOnly` `SameSite=Strict`; só o hash SHA-256 no banco |
 | Permissões dentro? | **Nunca** | — |
@@ -106,7 +106,7 @@ Regras de negócio notáveis: email validado com `net/mail`; senha mínima de 8 
 
 ## Testes
 
-Suite ponta a ponta em `backend/tests/` (20 testes): app real via `app.New` + `Fiber.Test()`, Postgres (banco `auth_test` recriado por execução) e Redis (db 1) reais. Cobre login, rotação de refresh, logout, rate limit, 401/403, grant/revoke com invalidação de cache, desativação e auditoria.
+Suite ponta a ponta em `backend/tests/`: app real via `app.New` + `Fiber.Test()`, Postgres (banco `auth_test` recriado por execução) e Redis (db 1) reais. Cobre login, rotação de refresh (nova sessão + detecção de reuse), fingerprint de sessão, logout, rate limit escalonado, wildcards de permissão, JWT RS256, 401/403, grant/revoke, desativação e auditoria expandida.
 
 ```bash
 cd infra && docker compose up -d postgres redis

@@ -37,12 +37,11 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-auth}:${POSTGRES_PASSWORD:-auth_dev_password}@postgres:5432/${POSTGRES_DB:-auth}?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       REDIS_KEY_PREFIX: "auth:"
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
+      JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
       ACCESS_TOKEN_TTL: 15m
       REFRESH_TOKEN_TTL: 720h
       PERMISSIONS_CACHE_TTL: 5m
-      LOGIN_RATE_LIMIT: 5
-      LOGIN_RATE_WINDOW: 15m
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@local.dev}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
