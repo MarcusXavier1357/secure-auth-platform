@@ -9,7 +9,7 @@ Documentação técnica detalhada em [docs/](docs/README.md) — backend, banco 
 | Camada | Tecnologias |
 |--------|-------------|
 | Frontend | React 19, Vite, Tailwind CSS 4, TanStack Query, React Router |
-| Backend | Go, Fiber, Bun (ORM), go-redis, golang-migrate, JWT, bcrypt |
+| Backend | Go, Fiber, Bun (ORM), go-redis, golang-migrate, JWT, Argon2id |
 | Infra | Docker Compose, Nginx, PostgreSQL 16, Redis 7 |
 
 ## Clonar em outra máquina
@@ -66,7 +66,6 @@ Frontend (proxy de `/api` para `localhost:8080` já configurado no Vite):
 ```bash
 cd frontend
 npm install
-npm run dev
 ```
 
 ## Testes
@@ -89,25 +88,33 @@ Nota: o Postgres do compose publica no host a porta `55432` (não `5432`) para e
 
 ## Endpoints principais
 
-| Método | Rota | Proteção |
-|--------|------|----------|
+| Método | Rota | Proteção / Permissão |
+|--------|------|----------------------|
 | POST | `/auth/login` | Rate limit (5/15min por IP e email) |
 | POST | `/auth/refresh` | Cookie HttpOnly (rotação de token) |
 | POST | `/auth/logout` | Cookie HttpOnly |
 | GET | `/me` | Autenticado |
-| GET/POST | `/users` | `users.manage` |
-| GET/PATCH | `/users/:id` | `users.manage` |
-| GET | `/permissions` | `permissions.manage` |
-| POST | `/users/:id/permissions` | `permissions.manage` |
-| DELETE | `/users/:id/permissions/:permissionId` | `permissions.manage` |
+| GET | `/users` | `users.read` |
+| POST | `/users` | `users.create` |
+| GET | `/users/:id` | `users.read` |
+| PATCH | `/users/:id` | Qualquer uma de: `users.update`, `users.password.reset`, `users.deactivate` |
+| GET | `/permissions` | `permissions.read` |
+| POST | `/permissions` | `permissions.create` |
+| PATCH | `/permissions/:id` | `permissions.update` |
+| DELETE | `/permissions/:id` | `permissions.delete` |
+| POST | `/users/:id/permissions` | `permissions.grant` |
+| DELETE | `/users/:id/permissions/:permissionId` | `permissions.revoke` |
 | GET | `/audit-logs` | `audit_logs.read` |
 
 ## Decisões de segurança
 
+- Senhas: armazenadas via **Argon2id** (formato PHC). Hashes bcrypt legados são re-criptografados de forma transparente no login bem-sucedido.
+- **Política de Senhas Seguras**: Mínimo de 12 e máximo de 128 caracteres, exigência de letras maiúsculas, minúsculas e números. Rejeita senhas comuns, sequências numéricas/alfabéticas lineares ($\ge 8$), padrões repetitivos ($\ge 10$) e dados pessoais do usuário (nome ou email).
+- **Verificação de Vazamentos (HIBP)**: Integração com o Have I Been Pwned via k-Anonymity (enviando apenas os 5 primeiros caracteres do SHA-1). Execução síncrona com timeout de 2s e comportamento *fail-open* (avisa no log e permite o registro em caso de falha externa).
 - Access token (15 min) vive apenas em memória no frontend; refresh token (30 dias) em cookie `HttpOnly` + `SameSite=Strict`, com apenas o hash SHA-256 persistido no banco.
 - Permissões nunca entram no JWT — são consultadas via cache Redis (TTL 5 min) com fallback para PostgreSQL.
 - Se o Redis cair durante o login, a API responde `503` em vez de pular o rate limit.
-- Login com bcrypt dummy nos caminhos de falha sem usuário — iguala o tempo de resposta e impede enumeração de emails por timing.
+- Login com `password.DummyVerify` nos caminhos de falha sem usuário para impedir enumeração por timing.
 - Error handler global: erros internos nunca vazam na resposta HTTP (`500` genérico + log estruturado).
 - Usuário não pode desativar a própria conta (previne lockout do último admin).
 - Toda operação crítica (login, logout, CRUD de usuários, grant/revoke) gera registro em `audit_logs`; a escrita usa contexto não-cancelável.
