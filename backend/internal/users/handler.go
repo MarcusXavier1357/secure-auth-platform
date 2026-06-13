@@ -77,8 +77,8 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
 	}
-	if req.Name == "" || req.Email == "" || len(req.Password) < 8 {
-		return fiber.NewError(fiber.StatusBadRequest, "name, email and password (min 8 chars) are required")
+	if req.Name == "" || req.Email == "" || req.Password == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "name, email and password are required")
 	}
 	if !validEmail(req.Email) {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid email format")
@@ -97,8 +97,20 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		if errors.Is(err, service.ErrInvalidEmail) {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid email format")
 		}
-		if errors.Is(err, service.ErrWeakPassword) {
-			return fiber.NewError(fiber.StatusBadRequest, "password must have at least 8 chars")
+		if errors.Is(err, service.ErrPasswordTooShort) {
+			return fiber.NewError(fiber.StatusBadRequest, "A senha deve possuir pelo menos 12 caracteres.")
+		}
+		if errors.Is(err, service.ErrPasswordTooLong) {
+			return fiber.NewError(fiber.StatusBadRequest, "A senha deve possuir no máximo 128 caracteres.")
+		}
+		if errors.Is(err, service.ErrPasswordComplexity) {
+			return fiber.NewError(fiber.StatusBadRequest, "A senha deve conter ao menos uma letra maiúscula, uma minúscula e um número.")
+		}
+		if errors.Is(err, service.ErrPasswordWeak) {
+			return fiber.NewError(fiber.StatusBadRequest, "A senha é considerada fraca. Escolha uma senha mais forte.")
+		}
+		if errors.Is(err, service.ErrPasswordPwned) {
+			return fiber.NewError(fiber.StatusBadRequest, "Esta senha já apareceu em vazamentos públicos e não pode ser utilizada.")
 		}
 		return err
 	}
@@ -123,8 +135,8 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
 	}
-	if req.Password != nil && len(*req.Password) < 8 {
-		return fiber.NewError(fiber.StatusBadRequest, "password must have at least 8 chars")
+	if req.Password != nil && *req.Password == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "password cannot be empty")
 	}
 	if req.Email != nil && !validEmail(*req.Email) {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid email format")
@@ -156,8 +168,20 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		if errors.Is(err, service.ErrInvalidEmail) {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid email format")
 		}
-		if errors.Is(err, service.ErrWeakPassword) {
-			return fiber.NewError(fiber.StatusBadRequest, "password must have at least 8 chars")
+		if errors.Is(err, service.ErrPasswordTooShort) {
+			return fiber.NewError(fiber.StatusBadRequest, "A senha deve possuir pelo menos 12 caracteres.")
+		}
+		if errors.Is(err, service.ErrPasswordTooLong) {
+			return fiber.NewError(fiber.StatusBadRequest, "A senha deve possuir no máximo 128 caracteres.")
+		}
+		if errors.Is(err, service.ErrPasswordComplexity) {
+			return fiber.NewError(fiber.StatusBadRequest, "A senha deve conter ao menos uma letra maiúscula, uma minúscula e um número.")
+		}
+		if errors.Is(err, service.ErrPasswordWeak) {
+			return fiber.NewError(fiber.StatusBadRequest, "A senha é considerada fraca. Escolha uma senha mais forte.")
+		}
+		if errors.Is(err, service.ErrPasswordPwned) {
+			return fiber.NewError(fiber.StatusBadRequest, "Esta senha já apareceu em vazamentos públicos e não pode ser utilizada.")
 		}
 		return err
 	}

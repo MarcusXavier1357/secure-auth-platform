@@ -17,18 +17,18 @@ func TestGranularUserCreateDenied(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "Leitor", "leitor-granular@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Leitor", "leitor-granular@test.dev", "UnleakedPass2026!")
 	readID := findPermissionID(t, admin, "users.read")
 	grantPermission(t, admin, user.ID, readID)
 
 	reader := newClient(t)
-	reader.mustLogin(user.Email, "Senha12345!")
+	reader.mustLogin(user.Email, "UnleakedPass2026!")
 
 	resp := reader.do("GET", "/users", nil)
 	requireStatus(t, resp, http.StatusOK)
 
 	resp = reader.do("POST", "/users", map[string]string{
-		"name": "Novo", "email": "novo-granular@test.dev", "password": "Senha12345!",
+		"name": "Novo", "email": "novo-granular@test.dev", "password": "UnleakedPass2026!",
 	})
 	requireStatus(t, resp, http.StatusForbidden)
 }
@@ -37,14 +37,14 @@ func TestGranularPatchFieldPermissions(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	target := createUser(t, admin, "Patch Alvo", "patch-alvo@test.dev", "Senha12345!")
-	editor := createUser(t, admin, "Patch Editor", "patch-editor@test.dev", "Senha12345!")
+	target := createUser(t, admin, "Patch Alvo", "patch-alvo@test.dev", "UnleakedPass2026!")
+	editor := createUser(t, admin, "Patch Editor", "patch-editor@test.dev", "UnleakedPass2026!")
 
 	updateID := findPermissionID(t, admin, "users.update")
 	grantPermission(t, admin, editor.ID, updateID)
 
 	c := newClient(t)
-	c.mustLogin(editor.Email, "Senha12345!")
+	c.mustLogin(editor.Email, "UnleakedPass2026!")
 
 	resp := c.do("PATCH", fmt.Sprintf("/users/%d", target.ID),
 		map[string]string{"name": "Renomeado"})
@@ -63,14 +63,14 @@ func TestGrantAntiEscalation(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	actor := createUser(t, admin, "Sem Escala", "sem-escala@test.dev", "Senha12345!")
+	actor := createUser(t, admin, "Sem Escala", "sem-escala@test.dev", "UnleakedPass2026!")
 	grantID := findPermissionID(t, admin, "permissions.grant")
 	auditID := findPermissionID(t, admin, "audit_logs.read")
 
 	grantPermission(t, admin, actor.ID, grantID)
 
 	c := newClient(t)
-	c.mustLogin(actor.Email, "Senha12345!")
+	c.mustLogin(actor.Email, "UnleakedPass2026!")
 
 	// Pode conceder audit_logs.read porque admin já deu essa perm ao actor? No - actor only has permissions.grant, not audit_logs.read
 	resp := c.do("POST", fmt.Sprintf("/users/%d/permissions", actor.ID),
@@ -133,7 +133,7 @@ func TestPermissionDeleteInUse(t *testing.T) {
 	}
 	decodeJSON(t, resp, &created)
 
-	user := createUser(t, admin, "Com Temp", "com-temp@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Com Temp", "com-temp@test.dev", "UnleakedPass2026!")
 	grantPermission(t, admin, user.ID, created.ID)
 
 	resp = admin.do("DELETE", fmt.Sprintf("/permissions/%d", created.ID), nil)
@@ -152,7 +152,7 @@ func TestLastAdminCannotDeactivate(t *testing.T) {
 	decodeJSON(t, resp, &me)
 
 	// Garante que só o admin seed tem * ativo neste banco de teste isolado.
-	other := createUser(t, admin, "Outro User", "outro-admin@test.dev", "Senha12345!")
+	other := createUser(t, admin, "Outro User", "outro-admin@test.dev", "UnleakedPass2026!")
 	resp = admin.do("PATCH", fmt.Sprintf("/users/%d", other.ID), map[string]bool{"active": false})
 	requireStatus(t, resp, http.StatusOK)
 
@@ -164,8 +164,8 @@ func TestUpdateUserDuplicateEmail(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	createUser(t, admin, "Email A", "email-a@test.dev", "Senha12345!")
-	userB := createUser(t, admin, "Email B", "email-b@test.dev", "Senha12345!")
+	createUser(t, admin, "Email A", "email-a@test.dev", "UnleakedPass2026!")
+	userB := createUser(t, admin, "Email B", "email-b@test.dev", "UnleakedPass2026!")
 
 	resp := admin.do("PATCH", fmt.Sprintf("/users/%d", userB.ID),
 		map[string]string{"email": "email-a@test.dev"})
@@ -232,7 +232,7 @@ func TestGrantAuditIncludesPermissionCode(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "Audit Grant", "audit-grant@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Audit Grant", "audit-grant@test.dev", "UnleakedPass2026!")
 	permID := findPermissionID(t, admin, "users.read")
 
 	resp := admin.do("POST", fmt.Sprintf("/users/%d/permissions", user.ID),

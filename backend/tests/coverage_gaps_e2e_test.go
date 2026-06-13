@@ -32,7 +32,7 @@ func TestGetUserByID(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "Por ID", "por-id@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Por ID", "por-id@test.dev", "UnleakedPass2026!")
 
 	resp := admin.do("GET", "/users/"+strconv.FormatInt(user.ID, 10), nil)
 	requireStatus(t, resp, http.StatusOK)
@@ -54,7 +54,7 @@ func TestGrantRevokePermissionValidation(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "Perm Val", "perm-val@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Perm Val", "perm-val@test.dev", "UnleakedPass2026!")
 
 	resp := admin.do("POST", "/users/abc/permissions", map[string]int64{"permissionId": 1})
 	requireStatus(t, resp, http.StatusBadRequest)

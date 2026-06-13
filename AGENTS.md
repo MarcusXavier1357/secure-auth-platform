@@ -59,6 +59,8 @@ if errors.Is(err, service.ErrInvalidCredentials) {
 - Frontend é não-confiável: toda autorização é revalidada no backend via `RequirePermission`.
 - Permissões **nunca** entram no payload do JWT — sempre Redis/Postgres.
 - Senhas: Argon2id (PHC); hashes bcrypt legados são regravados no login bem-sucedido. Refresh tokens: somente hash SHA-256 no banco, valor puro só no cookie `HttpOnly` + `SameSite=Strict`.
+- **Política de Senhas Seguras**: Cadastro e redefinição exigem mínimo de 12 e máximo de 128 caracteres, pelo menos uma maiúscula, uma minúscula e um número. São bloqueadas senhas fracas comuns, sequências previsíveis (como `12345678`, `qwertyui`), padrões repetitivos (`A1aaaaaaaaaa`) e dados pessoais (contendo nome ou email/prefixo do usuário).
+- **Verificação de Vazamentos (HIBP)**: Toda nova senha é validada no backend consultando de forma assíncrona a API Have I Been Pwned via k-Anonymity (SHA-1 prefixo de 5 caracteres), com timeout de 2s e comportamento *fail-open* (conexão caiu -> permite criação registrando aviso no log).
 - Access token no frontend vive **apenas em memória** — nunca localStorage/sessionStorage.
 - Rate limit roda **antes** da verificação de senha no login. Redis indisponível no login → `503` (nunca pular o rate limit).
 - Caminhos de falha do login sem usuário executam `password.DummyVerify` para igualar timing e impedir enumeração de emails. Mantenha esse padrão em qualquer novo caminho de falha.

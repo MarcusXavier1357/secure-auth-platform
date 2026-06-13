@@ -58,7 +58,7 @@ func (s *UserService) Create(ctx context.Context, actorID int64, input CreateUse
 	if err := validateEmail(input.Email); err != nil {
 		return nil, err
 	}
-	if err := validatePassword(input.Password); err != nil {
+	if err := validatePasswordSecure(input.Password, input.Name, input.Email); err != nil {
 		return nil, err
 	}
 
@@ -142,6 +142,16 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 	activated := false
 	passwordChanged := false
 
+	// Gather final name and email for password validation check
+	nameVal := user.Name
+	if input.Name != nil {
+		nameVal = *input.Name
+	}
+	emailVal := user.Email
+	if input.Email != nil {
+		emailVal = *input.Email
+	}
+
 	if input.Name != nil {
 		user.Name = *input.Name
 	}
@@ -167,7 +177,7 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 		user.Active = *input.Active
 	}
 	if input.Password != nil {
-		if err := validatePassword(*input.Password); err != nil {
+		if err := validatePasswordSecure(*input.Password, nameVal, emailVal); err != nil {
 			return nil, err
 		}
 		hash, err := password.Hash(*input.Password)

@@ -71,7 +71,7 @@ Roles **não concedem permissões**. Servem apenas para organização, relatóri
 | `id` | BIGINT IDENTITY | PK |
 | `role_id` | BIGINT | FK opcional para `roles` (nullable) |
 | `email` | VARCHAR(255) | UNIQUE — usado no login |
-| `password_hash` | TEXT | **Sempre bcrypt** (cost padrão 10). Nunca texto puro/MD5/SHA1 |
+| `password_hash` | TEXT | **Sempre Argon2id (PHC)**. Hashes bcrypt legados são re-hados no login bem-sucedido. Nunca texto puro/MD5/SHA1 |
 | `active` | BOOLEAN | `false` = bloqueado: login negado, access tokens param de valer (middleware verifica a cada request), sessões revogadas |
 
 ### `permissions` — o que o usuário pode fazer

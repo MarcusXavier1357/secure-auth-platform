@@ -143,12 +143,18 @@ Convenções: componentes funcionais, hooks para lógica reutilizável, Tailwind
 
 As páginas `/users`, `/permissions` e `/audit` usam TanStack Query (`useQuery`/`useMutation`) sobre os métodos de `api.ts`:
 
-- **`/users`**: tabela com nome, email, role, contagem de permissões e status (`api.users.list()`)
 - **`/permissions`**: seleção de usuário + grant/revoke por permissão; mutações invalidam a query `["users"]` para refletir o estado real do backend
+- **`/users`**: tabela com nome, email, role, contagem de permissões e status (`api.users.list()`). Permite a criação e edição de usuários via modal interativo, com validação de senha integrada.
 - **`/audit`**: tabela paginada (`limit`/`offset`) via `api.audit.list()`
+
+## Política de Senhas Visual (Tempo Real)
+
+No modal de criação/edição de usuários, foi integrada uma validação de senha síncrona visual:
+- **Barra de Força**: Classifica dinamicamente a senha como *Fraca*, *Média* ou *Forte* usando cores.
+- **Checklist Dinâmico**: Mostra ao usuário o estado dos critérios obrigatórios (comprimento $\ge 12$, maiúsculas/minúsculas/números, ausência de sequências e dados pessoais).
+- **Bloqueio de Submissão**: O botão de envio fica desativado enquanto a senha não preencher todos os requisitos de segurança locais.
 
 ## Limitações atuais (conscientes)
 
 - O fluxo de auth usa estado manual no `AuthProvider` (não TanStack Query) — decisão consciente: sessão é estado global síncrono, não cache de servidor
-- Não há criação/edição de usuário pela UI (`/users` é leitura; criação existe só na API)
 - Não há testes de frontend (a cobertura e2e está no backend, ver `backend/tests/`)

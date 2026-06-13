@@ -35,11 +35,11 @@ func TestLoginRateLimitEmitsSecurityAlert(t *testing.T) {
 	testIP := "198.51.100.77"
 
 	for i := 1; i <= 3; i++ {
-		resp := c.loginWithIP(testIP, "brute-alert@test.dev", "senha-errada")
+		resp := c.loginWithIP("brute-alert@test.dev", "senha-errada", testIP)
 		requireStatus(t, resp, http.StatusUnauthorized)
 	}
 
-	resp := c.loginWithIP(testIP, "brute-alert@test.dev", "senha-errada")
+	resp := c.loginWithIP("brute-alert@test.dev", "senha-errada", testIP)
 	requireStatus(t, resp, http.StatusTooManyRequests)
 
 	if !hasAuditAction(t, "security.alert", "login_rate_limit") {
@@ -83,11 +83,11 @@ func TestArgon2RehashOnLogin(t *testing.T) {
 func TestImpossibleTravelEmitsSecurityAlert(t *testing.T) {
 	c := newGeoClient(t)
 
-	resp := c.loginWithIP("203.0.113.1", adminEmail, adminPassword)
+	resp := c.loginWithIP(adminEmail, adminPassword, "203.0.113.1")
 	requireStatus(t, resp, http.StatusOK)
 
 	c2 := newGeoClient(t)
-	resp = c2.loginWithIP("203.0.113.2", adminEmail, adminPassword)
+	resp = c2.loginWithIP(adminEmail, adminPassword, "203.0.113.2")
 	requireStatus(t, resp, http.StatusOK)
 
 	if !hasAuditAction(t, "security.alert", "impossible_travel") {

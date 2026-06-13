@@ -121,6 +121,7 @@ func (s *AuthService) Login(ctx context.Context, email, passwordPlain, ip, userA
 
 	needsRehash, err := password.Verify(user.PasswordHash, passwordPlain)
 	if err != nil {
+		slog.Warn("login password verification failed", "userId", user.ID, "error", err)
 		s.auditLoginFailed(ctx, email, ip, "wrong_password")
 		return nil, ErrInvalidCredentials
 	}

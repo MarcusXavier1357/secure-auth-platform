@@ -28,18 +28,18 @@ func TestLegacyManageCodeDoesNotAuthorizeRead(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "So Leitura", "so-leitura-legacy@test.dev", "Senha12345!")
+	user := createUser(t, admin, "So Leitura", "so-leitura-legacy@test.dev", "UnleakedPass2026!")
 	readID := findPermissionID(t, admin, "users.read")
 	grantPermission(t, admin, user.ID, readID)
 
 	c := newClient(t)
-	c.mustLogin(user.Email, "Senha12345!")
+	c.mustLogin(user.Email, "UnleakedPass2026!")
 
 	resp := c.do("GET", "/users", nil)
 	requireStatus(t, resp, http.StatusOK)
 
 	resp = c.do("POST", "/users", map[string]string{
-		"name": "Novo", "email": "novo-legacy@test.dev", "password": "Senha12345!",
+		"name": "Novo", "email": "novo-legacy@test.dev", "password": "UnleakedPass2026!",
 	})
 	requireStatus(t, resp, http.StatusForbidden)
 }

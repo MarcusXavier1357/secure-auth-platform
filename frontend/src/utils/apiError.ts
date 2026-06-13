@@ -1,6 +1,17 @@
 export function parseApiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) {
-    const msg = error.message;
+    let msg = error.message;
+
+    // Tenta fazer o parse caso o erro seja um JSON enviado pelo backend
+    try {
+      const parsed = JSON.parse(msg);
+      if (parsed && typeof parsed.error === "string") {
+        msg = parsed.error;
+      }
+    } catch {
+      // Não é JSON, mantém a string original
+    }
+
     const map: Record<string, string> = {
       "email already in use": "Este e-mail já está em uso.",
       "cannot deactivate your own account": "Você não pode desativar a própria conta.",

@@ -50,10 +50,10 @@ func TestUserManagementRequiresPermission(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "Sem Permissão", "sem-permissao@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Sem Permissão", "sem-permissao@test.dev", "UnleakedPass2026!")
 
 	plain := newClient(t)
-	plain.mustLogin(user.Email, "Senha12345!")
+	plain.mustLogin(user.Email, "UnleakedPass2026!")
 
 	for _, route := range []struct{ method, path string }{
 		{"GET", "/users"},
@@ -71,9 +71,9 @@ func TestCreateUserValidations(t *testing.T) {
 	admin.mustLogin(adminEmail, adminPassword)
 
 	// Email duplicado
-	createUser(t, admin, "Original", "duplicado@test.dev", "Senha12345!")
+	createUser(t, admin, "Original", "duplicado@test.dev", "UnleakedPass2026!")
 	resp := admin.do("POST", "/users", map[string]string{
-		"name": "Cópia", "email": "duplicado@test.dev", "password": "Senha12345!",
+		"name": "Cópia", "email": "duplicado@test.dev", "password": "UnleakedPass2026!",
 	})
 	requireStatus(t, resp, http.StatusConflict)
 
@@ -88,11 +88,11 @@ func TestGrantAndRevokePermissionInvalidatesCache(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "Promovido", "promovido@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Promovido", "promovido@test.dev", "UnleakedPass2026!")
 	permID := findPermissionID(t, admin, "users.read")
 
 	promoted := newClient(t)
-	promoted.mustLogin(user.Email, "Senha12345!")
+	promoted.mustLogin(user.Email, "UnleakedPass2026!")
 
 	// Sem permissão (e popula o cache com o estado atual)
 	resp := promoted.do("GET", "/users", nil)
@@ -118,10 +118,10 @@ func TestDeactivatedUserLosesAllAccess(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "Desativado", "desativado@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Desativado", "desativado@test.dev", "UnleakedPass2026!")
 
 	victim := newClient(t)
-	victim.mustLogin(user.Email, "Senha12345!")
+	victim.mustLogin(user.Email, "UnleakedPass2026!")
 	sessionCookie := *victim.refreshCookie()
 
 	// Sanidade: acesso funciona antes da desativação
@@ -147,7 +147,7 @@ func TestDeactivatedUserLosesAllAccess(t *testing.T) {
 
 	// Novo login bloqueado
 	relogin := newClient(t)
-	resp = relogin.login(user.Email, "Senha12345!")
+	resp = relogin.login(user.Email, "UnleakedPass2026!")
 	requireStatus(t, resp, http.StatusUnauthorized)
 
 	// Reativação restaura o acesso
@@ -155,7 +155,7 @@ func TestDeactivatedUserLosesAllAccess(t *testing.T) {
 		map[string]bool{"active": true})
 	requireStatus(t, resp, http.StatusOK)
 
-	resp = relogin.login(user.Email, "Senha12345!")
+	resp = relogin.login(user.Email, "UnleakedPass2026!")
 	requireStatus(t, resp, http.StatusOK)
 }
 
@@ -185,7 +185,7 @@ func TestCreateUserInvalidEmail(t *testing.T) {
 
 	for _, email := range []string{"sem-arroba", "a@b@c", "Nome <nome@test.dev>"} {
 		resp := admin.do("POST", "/users", map[string]string{
-			"name": "Email Inválido", "email": email, "password": "Senha12345!",
+			"name": "Email Inválido", "email": email, "password": "UnleakedPass2026!",
 		})
 		requireStatus(t, resp, http.StatusBadRequest)
 	}
@@ -208,7 +208,7 @@ func TestAuditLogsRecordCriticalActions(t *testing.T) {
 
 	// Gera todas as ações críticas dentro do próprio teste para não depender
 	// da ordem de execução dos demais.
-	user := createUser(t, admin, "Auditado", "auditado@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Auditado", "auditado@test.dev", "UnleakedPass2026!")
 	permID := findPermissionID(t, admin, "audit_logs.read")
 
 	resp := admin.do("POST", fmt.Sprintf("/users/%d/permissions", user.ID),
@@ -224,7 +224,7 @@ func TestAuditLogsRecordCriticalActions(t *testing.T) {
 	audited := newClient(t)
 	resp = audited.login(user.Email, "senha-errada")
 	requireStatus(t, resp, http.StatusUnauthorized)
-	audited.mustLogin(user.Email, "Senha12345!")
+	audited.mustLogin(user.Email, "UnleakedPass2026!")
 	resp = audited.do("POST", "/auth/logout", nil)
 	requireStatus(t, resp, http.StatusNoContent)
 
@@ -261,7 +261,7 @@ func TestWildcardUsersModuleGrantsManage(t *testing.T) {
 	admin := newClient(t)
 	admin.mustLogin(adminEmail, adminPassword)
 
-	user := createUser(t, admin, "Wildcard User", "wildcard@test.dev", "Senha12345!")
+	user := createUser(t, admin, "Wildcard User", "wildcard@test.dev", "UnleakedPass2026!")
 	wildcardID := findPermissionID(t, admin, "users.*")
 
 	resp := admin.do("POST", fmt.Sprintf("/users/%d/permissions", user.ID),
@@ -269,7 +269,7 @@ func TestWildcardUsersModuleGrantsManage(t *testing.T) {
 	requireStatus(t, resp, http.StatusNoContent)
 
 	u := newClient(t)
-	u.mustLogin(user.Email, "Senha12345!")
+	u.mustLogin(user.Email, "UnleakedPass2026!")
 
 	resp = u.do("GET", "/users", nil)
 	requireStatus(t, resp, http.StatusOK)

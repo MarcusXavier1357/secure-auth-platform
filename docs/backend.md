@@ -32,6 +32,26 @@ A montagem (wiring) fica em `internal/app/app.go` — usada pelo `main` e pelos 
 - Handlers traduzem com `errors.Is` para `fiber.NewError(status, msg)`
 - O que não for mapeado cai no **ErrorHandler global**: responde `500` genérico e loga o erro real — detalhes internos nunca vazam na resposta
 
+## Política de Senhas e Validações
+
+O backend valida rigorosamente toda criação ou alteração de senhas de usuários antes de gerar o hash final:
+
+1. **Regras Básicas**:
+   - Comprimento: entre 12 e 128 caracteres.
+   - Composição: exige pelo menos 1 maiúscula, 1 minúscula e 1 dígito.
+2. **Filtro de Padrões Proibidos**:
+   - Lista negra estática de senhas fracas comuns.
+   - Detecção de sequências alfanuméricas consecutivas de tamanho $\ge 8$ (ex.: `12345678`, `abcdefgh`) ou padrões de linha física do teclado (ex.: `qwertyui`).
+   - Detecção de repetições acumuladas de tamanho $\ge 10$ (ex.: `A1aaaaaaaaaa`, `Ab1Ab1Ab1Ab1Ab1`).
+3. **Filtro de Dados Pessoais**:
+   - Bloqueio de senhas que contenham partes do Nome, Sobrenome, Email ou prefixo do Email do usuário (case-insensitive).
+4. **Have I Been Pwned (HIBP)**:
+   - Consulta a API pública via k-Anonymity (enviando apenas os 5 primeiros caracteres hexadecimais do hash SHA-1 da senha).
+   - O restante do hash (sufixo) é verificado localmente.
+   - Possui timeout de 2s e comportamento *fail-open* (avança logando um aviso em caso de indisponibilidade da API externa).
+
+Para otimizar recursos, todas essas validações rodam **antes** do hashing pesado com Argon2id.
+
 ## Fluxo de autenticação
 
 ### Login (`POST /auth/login`)
