@@ -4,14 +4,16 @@ import { RootLayout } from "../app/layout";
 import { PublicLayout } from "../app/(public)/layout";
 import { ProtectedLayout } from "../app/(protected)/layout";
 import { RequirePermission } from "../components/RequirePermission";
+import { adminRoutes, type AdminRouteId } from "./admin-routes";
 import { paths } from "./paths";
 import LoginPage from "../app/(public)/login/page";
 import DashboardPage from "../app/(protected)/page";
 
-// Páginas admin via lazy(): só entram no bundle de quem navega até elas.
-const UsersPage = lazy(() => import("../app/(protected)/users/page"));
-const PermissionsPage = lazy(() => import("../app/(protected)/permissions/page"));
-const AuditPage = lazy(() => import("../app/(protected)/audit/page"));
+const adminPages: Record<AdminRouteId, ReturnType<typeof lazy>> = {
+  users: lazy(() => import("../app/(protected)/users/page")),
+  permissions: lazy(() => import("../app/(protected)/permissions/page")),
+  audit: lazy(() => import("../app/(protected)/audit/page")),
+};
 
 function NotFoundPage() {
   return (
@@ -36,15 +38,14 @@ export function AppRouter() {
         <Route element={<ProtectedLayout />}>
           <Route index element={<DashboardPage />} />
 
-          <Route element={<RequirePermission code="users.manage" />}>
-            <Route path={paths.users()} element={<UsersPage />} />
-          </Route>
-          <Route element={<RequirePermission code="permissions.manage" />}>
-            <Route path={paths.permissions()} element={<PermissionsPage />} />
-          </Route>
-          <Route element={<RequirePermission code="audit_logs.read" />}>
-            <Route path={paths.audit()} element={<AuditPage />} />
-          </Route>
+          {adminRoutes.map((route) => {
+            const Page = adminPages[route.id];
+            return (
+              <Route key={route.id} element={<RequirePermission code={route.permission} />}>
+                <Route path={route.path} element={<Page />} />
+              </Route>
+            );
+          })}
         </Route>
       </Route>
 

@@ -55,6 +55,13 @@ func (s *UserService) FindByID(ctx context.Context, id int64) (*models.User, err
 }
 
 func (s *UserService) Create(ctx context.Context, actorID int64, input CreateUserInput) (*models.User, error) {
+	if err := validateEmail(input.Email); err != nil {
+		return nil, err
+	}
+	if err := validatePassword(input.Password); err != nil {
+		return nil, err
+	}
+
 	if _, err := s.users.FindByEmail(ctx, input.Email); err == nil {
 		return nil, ErrEmailTaken
 	} else if !errors.Is(err, repository.ErrNotFound) {
@@ -106,6 +113,9 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 		user.Name = *input.Name
 	}
 	if input.Email != nil {
+		if err := validateEmail(*input.Email); err != nil {
+			return nil, err
+		}
 		user.Email = *input.Email
 	}
 	if input.RoleID != nil {
@@ -117,6 +127,9 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 		user.Active = *input.Active
 	}
 	if input.Password != nil {
+		if err := validatePassword(*input.Password); err != nil {
+			return nil, err
+		}
 		hash, err := password.Hash(*input.Password)
 		if err != nil {
 			return nil, err

@@ -10,12 +10,18 @@ import (
 
 type PermissionService struct {
 	permRepo  *repository.PermissionRepository
+	userRepo  *repository.UserRepository
 	permCache *cache.PermissionCache
 	audit     *AuditService
 }
 
-func NewPermissionService(permRepo *repository.PermissionRepository, permCache *cache.PermissionCache, audit *AuditService) *PermissionService {
-	return &PermissionService{permRepo: permRepo, permCache: permCache, audit: audit}
+func NewPermissionService(
+	permRepo *repository.PermissionRepository,
+	userRepo *repository.UserRepository,
+	permCache *cache.PermissionCache,
+	audit *AuditService,
+) *PermissionService {
+	return &PermissionService{permRepo: permRepo, userRepo: userRepo, permCache: permCache, audit: audit}
 }
 
 // HasPermission verifica via cache-aside: Redis primeiro, PostgreSQL no miss.
@@ -54,6 +60,12 @@ func (s *PermissionService) ListCodesByUser(ctx context.Context, userID int64) (
 }
 
 func (s *PermissionService) Grant(ctx context.Context, actorID, userID, permissionID int64) error {
+	if _, err := s.userRepo.FindByID(ctx, userID); err != nil {
+		return err
+	}
+	if _, err := s.permRepo.FindByID(ctx, permissionID); err != nil {
+		return err
+	}
 	if err := s.permRepo.Grant(ctx, userID, permissionID); err != nil {
 		return err
 	}
@@ -64,6 +76,12 @@ func (s *PermissionService) Grant(ctx context.Context, actorID, userID, permissi
 }
 
 func (s *PermissionService) Revoke(ctx context.Context, actorID, userID, permissionID int64) error {
+	if _, err := s.userRepo.FindByID(ctx, userID); err != nil {
+		return err
+	}
+	if _, err := s.permRepo.FindByID(ctx, permissionID); err != nil {
+		return err
+	}
 	if err := s.permRepo.Revoke(ctx, userID, permissionID); err != nil {
 		return err
 	}

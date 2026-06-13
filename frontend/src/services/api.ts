@@ -75,7 +75,6 @@ export const api = {
 
   users: {
     list: () => request<UserWithPermissions[]>("/users"),
-    get: (id: number) => request<UserWithPermissions>(`/users/${id}`),
   },
 
   permissions: {

@@ -6,11 +6,19 @@ export default function PermissionsPage() {
   const queryClient = useQueryClient();
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
-  const { data: permissions } = useQuery({
+  const {
+    data: permissions,
+    isLoading: permissionsLoading,
+    isError: permissionsError,
+  } = useQuery({
     queryKey: ["permissions"],
     queryFn: api.permissions.list,
   });
-  const { data: users } = useQuery({ queryKey: ["users"], queryFn: api.users.list });
+  const {
+    data: users,
+    isLoading: usersLoading,
+    isError: usersError,
+  } = useQuery({ queryKey: ["users"], queryFn: api.users.list });
 
   const selectedUser = users?.find((u) => u.id === selectedUserId) ?? null;
   const grantedIds = new Set(selectedUser?.permissions?.map((p) => p.id) ?? []);
@@ -29,6 +37,13 @@ export default function PermissionsPage() {
   });
 
   const pending = grant.isPending || revoke.isPending;
+
+  if (permissionsLoading || usersLoading) {
+    return <p className="text-sm text-slate-400">Carregando permissões...</p>;
+  }
+  if (permissionsError || usersError) {
+    return <p className="text-sm text-red-400">Erro ao carregar permissões.</p>;
+  }
 
   return (
     <div className="space-y-6">

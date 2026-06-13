@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../providers/AuthProvider";
+import { paths } from "../router/paths";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -13,7 +14,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={paths.login()} replace />;
   }
   return children;
 }

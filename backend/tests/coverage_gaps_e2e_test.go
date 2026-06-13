@@ -13,21 +13,9 @@ import (
 )
 
 func testAppConfig() app.Config {
-	return app.Config{
-		DatabaseURL:     getenv("TEST_PG_URL", "postgres://auth:auth_dev_password@127.0.0.1:55432/auth_test?sslmode=disable"),
-		MigrationsPath:  "../migrations",
-		RedisURL:        getenv("TEST_REDIS_URL", "redis://127.0.0.1:6379/1"),
-		RedisKeyPrefix:  "testgap:",
-		JWTKeyPair:      testJWTKeys,
-		AccessTTL:       15 * time.Minute,
-		RefreshTTL:      30 * 24 * time.Hour,
-		PermCacheTTL:    5 * time.Minute,
-		LoginRateTiers:  app.DefaultLoginRateTiers(),
-		LoginCounterTTL: 24 * time.Hour,
-		AdminEmail:      "gap-admin@test.dev",
-		AdminPassword:   adminPassword,
-		CookieSecure:    false,
-	}
+	cfg := baseTestConfig()
+	cfg.RedisKeyPrefix = "testgap:"
+	return cfg
 }
 
 func spawnApp(t *testing.T, cfg app.Config) *app.App {

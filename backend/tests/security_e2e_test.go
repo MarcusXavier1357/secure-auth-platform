@@ -1,9 +1,7 @@
 package tests
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -37,11 +35,11 @@ func TestLoginRateLimitEmitsSecurityAlert(t *testing.T) {
 	testIP := "198.51.100.77"
 
 	for i := 1; i <= 3; i++ {
-		resp := c.loginFromIP(testIP, "brute-alert@test.dev", "senha-errada")
+		resp := c.loginWithIP(testIP, "brute-alert@test.dev", "senha-errada")
 		requireStatus(t, resp, http.StatusUnauthorized)
 	}
 
-	resp := c.loginFromIP(testIP, "brute-alert@test.dev", "senha-errada")
+	resp := c.loginWithIP(testIP, "brute-alert@test.dev", "senha-errada")
 	requireStatus(t, resp, http.StatusTooManyRequests)
 
 	if !hasAuditAction(t, "security.alert", "login_rate_limit") {
@@ -85,11 +83,11 @@ func TestArgon2RehashOnLogin(t *testing.T) {
 func TestImpossibleTravelEmitsSecurityAlert(t *testing.T) {
 	c := newGeoClient(t)
 
-	resp := c.loginFromIP("203.0.113.1", adminEmail, adminPassword)
+	resp := c.loginWithIP("203.0.113.1", adminEmail, adminPassword)
 	requireStatus(t, resp, http.StatusOK)
 
 	c2 := newGeoClient(t)
-	resp = c2.loginFromIP("203.0.113.2", adminEmail, adminPassword)
+	resp = c2.loginWithIP("203.0.113.2", adminEmail, adminPassword)
 	requireStatus(t, resp, http.StatusOK)
 
 	if !hasAuditAction(t, "security.alert", "impossible_travel") {
@@ -119,34 +117,4 @@ func hasAuditAction(t *testing.T, action, reason string) bool {
 		}
 	}
 	return false
-}
-
-func (c *client) loginFromIP(ip, email, password string) *http.Response {
-	c.t.Helper()
-
-	raw, err := json.Marshal(map[string]string{"email": email, "password": password})
-	if err != nil {
-		c.t.Fatalf("marshal body: %v", err)
-	}
-
-	req := httptest.NewRequest("POST", "/auth/login", bytes.NewReader(raw))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Forwarded-For", ip)
-	req.RemoteAddr = ip + ":12345"
-
-	resp, err := c.app.Fiber.Test(req, -1)
-	if err != nil {
-		c.t.Fatalf("login from %s failed: %v", ip, err)
-	}
-	for _, ck := range resp.Cookies() {
-		c.cookies[ck.Name] = ck
-	}
-	if resp.StatusCode == http.StatusOK {
-		var body struct {
-			AccessToken string `json:"accessToken"`
-		}
-		decodeJSON(c.t, resp, &body)
-		c.token = body.AccessToken
-	}
-	return resp
 }

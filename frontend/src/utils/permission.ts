@@ -1,4 +1,5 @@
-// Espelha matchPermission do backend — controle visual apenas.
+// Espelha matchPermission do backend (internal/service/permission_match.go) —
+// controle visual apenas. Manter em sync; testes espelhados.
 export function matchPermission(granted: string[], required: string): boolean {
   for (const g of granted) {
     if (g === "*" || g === required) {

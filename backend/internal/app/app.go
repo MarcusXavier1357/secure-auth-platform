@@ -146,7 +146,7 @@ func New(cfg Config) (*App, error) {
 	}
 
 	auditSvc := service.NewAuditService(auditRepo)
-	permSvc := service.NewPermissionService(permRepo, permCache, auditSvc)
+	permSvc := service.NewPermissionService(permRepo, userRepo, permCache, auditSvc)
 	authSvc := service.NewAuthService(
 		userRepo, sessionRepo, tieredLimiter, lastLoginStore, geoLookup, auditSvc,
 		jwtKeys, cfg.AccessTTL, cfg.RefreshTTL, cfg.ImpossibleTravelWindow,

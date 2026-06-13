@@ -3,13 +3,16 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../providers/AuthProvider";
 import { Can } from "./Can";
 import { paths } from "../router/paths";
+import { adminRoutes } from "../router/admin-routes";
 
 const navItems = [
-  { to: paths.home(), label: "Início", permission: null },
-  { to: paths.users(), label: "Usuários", permission: "users.manage" },
-  { to: paths.permissions(), label: "Permissões", permission: "permissions.manage" },
-  { to: paths.audit(), label: "Auditoria", permission: "audit_logs.read" },
-] as const;
+  { to: paths.home(), label: "Início", permission: null as string | null },
+  ...adminRoutes.map((route) => ({
+    to: route.path,
+    label: route.navLabel,
+    permission: route.permission,
+  })),
+];
 
 function SidebarLink({ to, label }: { to: string; label: string }) {
   return (

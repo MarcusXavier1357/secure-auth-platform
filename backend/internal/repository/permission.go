@@ -39,6 +39,18 @@ func (r *PermissionRepository) FindByCode(ctx context.Context, code string) (*mo
 	return permission, err
 }
 
+func (r *PermissionRepository) FindByID(ctx context.Context, id int64) (*models.Permission, error) {
+	permission := new(models.Permission)
+	err := r.db.NewSelect().
+		Model(permission).
+		Where("p.id = ?", id).
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return permission, err
+}
+
 func (r *PermissionRepository) ListCodesByUserID(ctx context.Context, userID int64) ([]string, error) {
 	var codes []string
 	err := r.db.NewSelect().

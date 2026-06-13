@@ -3,10 +3,10 @@ package users
 import (
 	"errors"
 	"net/mail"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 
+	"auth-backend/internal/httputil"
 	"auth-backend/internal/repository"
 	"auth-backend/internal/service"
 	"auth-backend/middleware"
@@ -30,7 +30,7 @@ func (h *Handler) List(c *fiber.Ctx) error {
 }
 
 func (h *Handler) Get(c *fiber.Ctx) error {
-	id, err := parseID(c)
+	id, err := httputil.ParsePositiveInt64(c.Params("id"), "id")
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,13 @@ func (h *Handler) Me(c *fiber.Ctx) error {
 	userID := middleware.UserID(c)
 	user, err := h.users.FindByID(c.Context(), userID)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fiber.NewError(fiber.StatusUnauthorized, "invalid or expired session")
+		}
 		return err
+	}
+	if !user.Active {
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid or expired session")
 	}
 	codes, err := h.perms.ListCodesByUser(c.Context(), userID)
 	if err != nil {
@@ -88,6 +94,12 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		if errors.Is(err, service.ErrEmailTaken) {
 			return fiber.NewError(fiber.StatusConflict, "email already in use")
 		}
+		if errors.Is(err, service.ErrInvalidEmail) {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid email format")
+		}
+		if errors.Is(err, service.ErrWeakPassword) {
+			return fiber.NewError(fiber.StatusBadRequest, "password must have at least 8 chars")
+		}
 		return err
 	}
 	return c.Status(fiber.StatusCreated).JSON(user)
@@ -102,7 +114,7 @@ type updateRequest struct {
 }
 
 func (h *Handler) Update(c *fiber.Ctx) error {
-	id, err := parseID(c)
+	id, err := httputil.ParsePositiveInt64(c.Params("id"), "id")
 	if err != nil {
 		return err
 	}
@@ -132,6 +144,12 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		if errors.Is(err, service.ErrCannotDeactivateSelf) {
 			return fiber.NewError(fiber.StatusConflict, "cannot deactivate your own account")
 		}
+		if errors.Is(err, service.ErrInvalidEmail) {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid email format")
+		}
+		if errors.Is(err, service.ErrWeakPassword) {
+			return fiber.NewError(fiber.StatusBadRequest, "password must have at least 8 chars")
+		}
 		return err
 	}
 	return c.JSON(user)
@@ -141,12 +159,4 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 func validEmail(email string) bool {
 	addr, err := mail.ParseAddress(email)
 	return err == nil && addr.Address == email
-}
-
-func parseID(c *fiber.Ctx) (int64, error) {
-	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
-	if err != nil || id <= 0 {
-		return 0, fiber.NewError(fiber.StatusBadRequest, "invalid id")
-	}
-	return id, nil
 }

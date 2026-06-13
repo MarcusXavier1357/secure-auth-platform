@@ -93,19 +93,11 @@ func (s *AuthService) Login(ctx context.Context, email, passwordPlain, ip, userA
 	ipKey := cache.LoginIPKey(ip)
 	emailKey := cache.LoginEmailKey(email)
 
-	if blocked, retryAfter, count, err := s.tieredLimiter.Check(ctx, ipKey); err != nil {
-		slog.Error("rate limiter unavailable during login", "error", err)
-		return nil, ErrRateLimitDown
-	} else if blocked {
-		s.auditRateLimitBlock(ctx, email, ip, count, retryAfter)
-		return nil, ErrRateLimited
+	if err := s.checkLoginRateLimit(ctx, ipKey, email, ip); err != nil {
+		return nil, err
 	}
-	if blocked, retryAfter, count, err := s.tieredLimiter.Check(ctx, emailKey); err != nil {
-		slog.Error("rate limiter unavailable during login", "error", err)
-		return nil, ErrRateLimitDown
-	} else if blocked {
-		s.auditRateLimitBlock(ctx, email, ip, count, retryAfter)
-		return nil, ErrRateLimited
+	if err := s.checkLoginRateLimit(ctx, emailKey, email, ip); err != nil {
+		return nil, err
 	}
 
 	user, err := s.users.FindByEmail(ctx, email)
@@ -198,6 +190,19 @@ func (s *AuthService) checkImpossibleTravel(ctx context.Context, userID int64, i
 	}); err != nil {
 		slog.Warn("failed to store last login", "userId", userID, "error", err)
 	}
+}
+
+func (s *AuthService) checkLoginRateLimit(ctx context.Context, key, email, ip string) error {
+	blocked, retryAfter, count, err := s.tieredLimiter.Check(ctx, key)
+	if err != nil {
+		slog.Error("rate limiter unavailable during login", "error", err)
+		return ErrRateLimitDown
+	}
+	if blocked {
+		s.auditRateLimitBlock(ctx, email, ip, count, retryAfter)
+		return ErrRateLimited
+	}
+	return nil
 }
 
 func (s *AuthService) auditRateLimitBlock(ctx context.Context, email, ip string, count int64, retryAfter time.Duration) {

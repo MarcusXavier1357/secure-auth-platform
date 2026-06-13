@@ -28,6 +28,8 @@ export default function LoginPage() {
         setError("Email ou senha incorretos.");
       } else if (err instanceof ApiError && err.status === 429) {
         setError("Muitas tentativas. Aguarde alguns minutos e tente novamente.");
+      } else if (err instanceof ApiError && err.status === 503) {
+        setError("Login temporariamente indisponível. Tente novamente em instantes.");
       } else {
         setError("Erro ao entrar. Tente novamente.");
       }

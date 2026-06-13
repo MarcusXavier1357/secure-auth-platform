@@ -1,10 +1,12 @@
 package permissions
 
 import (
-	"strconv"
+	"errors"
 
 	"github.com/gofiber/fiber/v2"
 
+	"auth-backend/internal/httputil"
+	"auth-backend/internal/repository"
 	"auth-backend/internal/service"
 	"auth-backend/middleware"
 )
@@ -30,7 +32,7 @@ type grantRequest struct {
 }
 
 func (h *Handler) Grant(c *fiber.Ctx) error {
-	userID, err := parseUserID(c)
+	userID, err := httputil.ParsePositiveInt64(c.Params("id"), "user id")
 	if err != nil {
 		return err
 	}
@@ -41,31 +43,29 @@ func (h *Handler) Grant(c *fiber.Ctx) error {
 	}
 
 	if err := h.perms.Grant(c.Context(), middleware.UserID(c), userID, req.PermissionID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "user or permission not found")
+		}
 		return err
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func (h *Handler) Revoke(c *fiber.Ctx) error {
-	userID, err := parseUserID(c)
+	userID, err := httputil.ParsePositiveInt64(c.Params("id"), "user id")
 	if err != nil {
 		return err
 	}
-	permissionID, err := strconv.ParseInt(c.Params("permissionId"), 10, 64)
-	if err != nil || permissionID <= 0 {
-		return fiber.NewError(fiber.StatusBadRequest, "invalid permissionId")
+	permissionID, err := httputil.ParsePositiveInt64(c.Params("permissionId"), "permissionId")
+	if err != nil {
+		return err
 	}
 
 	if err := h.perms.Revoke(c.Context(), middleware.UserID(c), userID, permissionID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "user or permission not found")
+		}
 		return err
 	}
 	return c.SendStatus(fiber.StatusNoContent)
-}
-
-func parseUserID(c *fiber.Ctx) (int64, error) {
-	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
-	if err != nil || id <= 0 {
-		return 0, fiber.NewError(fiber.StatusBadRequest, "invalid user id")
-	}
-	return id, nil
 }

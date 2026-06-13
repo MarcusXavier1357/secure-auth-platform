@@ -63,21 +63,8 @@ func TestMain(m *testing.M) {
 		log.Fatalf("generate test jwt keys: %v", err)
 	}
 
-	baseCfg := app.Config{
-		DatabaseURL:     testDSN,
-		MigrationsPath:  "../migrations",
-		RedisURL:        redisURL,
-		RedisKeyPrefix:  "test:",
-		JWTKeyPair:      testJWTKeys,
-		AccessTTL:       15 * time.Minute,
-		RefreshTTL:      30 * 24 * time.Hour,
-		PermCacheTTL:    5 * time.Minute,
-		LoginRateTiers:  app.DefaultLoginRateTiers(),
-		LoginCounterTTL: 24 * time.Hour,
-		AdminEmail:      adminEmail,
-		AdminPassword:   adminPassword,
-		CookieSecure:    false,
-	}
+	baseCfg := baseTestConfig()
+	baseCfg.RedisKeyPrefix = "test:"
 
 	testApp, err = app.New(baseCfg)
 	if err != nil {
@@ -153,6 +140,24 @@ func getenv(key, fallback string) string {
 	return fallback
 }
 
+func baseTestConfig() app.Config {
+	return app.Config{
+		DatabaseURL:     getenv("TEST_PG_URL", "postgres://auth:auth_dev_password@127.0.0.1:55432/auth_test?sslmode=disable"),
+		MigrationsPath:  "../migrations",
+		RedisURL:        getenv("TEST_REDIS_URL", "redis://127.0.0.1:6379/1"),
+		RedisKeyPrefix:  "test:",
+		JWTKeyPair:      testJWTKeys,
+		AccessTTL:       15 * time.Minute,
+		RefreshTTL:      30 * 24 * time.Hour,
+		PermCacheTTL:    5 * time.Minute,
+		LoginRateTiers:  app.DefaultLoginRateTiers(),
+		LoginCounterTTL: 24 * time.Hour,
+		AdminEmail:      adminEmail,
+		AdminPassword:   adminPassword,
+		CookieSecure:    false,
+	}
+}
+
 type client struct {
 	t       *testing.T
 	app     *app.App
@@ -193,6 +198,9 @@ func (c *client) doWithHeaders(method, path string, body any, extraHeaders map[s
 	for k, v := range extraHeaders {
 		req.Header.Set(k, v)
 	}
+	if ip := extraHeaders["X-Forwarded-For"]; ip != "" {
+		req.RemoteAddr = ip + ":12345"
+	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
@@ -212,8 +220,15 @@ func (c *client) doWithHeaders(method, path string, body any, extraHeaders map[s
 }
 
 func (c *client) login(email, password string) *http.Response {
+	return c.loginWithIP(email, password, "")
+}
+
+func (c *client) loginWithIP(email, password, ip string) *http.Response {
 	c.t.Helper()
-	resp := c.do("POST", "/auth/login", map[string]string{"email": email, "password": password})
+	resp := c.doWithHeaders("POST", "/auth/login",
+		map[string]string{"email": email, "password": password},
+		loginIPHeaders(ip),
+	)
 	if resp.StatusCode == http.StatusOK {
 		var body struct {
 			AccessToken string `json:"accessToken"`
@@ -222,6 +237,13 @@ func (c *client) login(email, password string) *http.Response {
 		c.token = body.AccessToken
 	}
 	return resp
+}
+
+func loginIPHeaders(ip string) map[string]string {
+	if ip == "" {
+		return nil
+	}
+	return map[string]string{"X-Forwarded-For": ip}
 }
 
 func (c *client) mustLogin(email, password string) {
