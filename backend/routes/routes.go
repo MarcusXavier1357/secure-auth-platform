@@ -28,6 +28,9 @@ func Setup(app *fiber.App, d Deps) {
 	requirePerm := func(code string) fiber.Handler {
 		return middleware.RequirePermission(d.PermService, code)
 	}
+	requireAnyPerm := func(codes ...string) fiber.Handler {
+		return middleware.RequireAnyPermission(d.PermService, codes...)
+	}
 
 	// Públicas
 	app.Post("/auth/login", d.AuthHandler.Login)
@@ -38,15 +41,22 @@ func Setup(app *fiber.App, d Deps) {
 	app.Get("/me", authMW, d.UserHandler.Me)
 
 	// Gestão de usuários
-	app.Get("/users", authMW, requirePerm("users.manage"), d.UserHandler.List)
-	app.Post("/users", authMW, requirePerm("users.manage"), d.UserHandler.Create)
-	app.Get("/users/:id", authMW, requirePerm("users.manage"), d.UserHandler.Get)
-	app.Patch("/users/:id", authMW, requirePerm("users.manage"), d.UserHandler.Update)
+	app.Get("/users", authMW, requirePerm("users.read"), d.UserHandler.List)
+	app.Post("/users", authMW, requirePerm("users.create"), d.UserHandler.Create)
+	app.Get("/users/:id", authMW, requirePerm("users.read"), d.UserHandler.Get)
+	app.Patch("/users/:id", authMW, requireAnyPerm(
+		"users.update", "users.password.reset", "users.deactivate",
+	), d.UserHandler.Update)
+
+	app.Get("/roles", authMW, requirePerm("users.read"), d.PermHandler.ListRoles)
 
 	// Gestão de permissões
-	app.Get("/permissions", authMW, requirePerm("permissions.manage"), d.PermHandler.List)
-	app.Post("/users/:id/permissions", authMW, requirePerm("permissions.manage"), d.PermHandler.Grant)
-	app.Delete("/users/:id/permissions/:permissionId", authMW, requirePerm("permissions.manage"), d.PermHandler.Revoke)
+	app.Get("/permissions", authMW, requirePerm("permissions.read"), d.PermHandler.List)
+	app.Post("/permissions", authMW, requirePerm("permissions.create"), d.PermHandler.Create)
+	app.Patch("/permissions/:id", authMW, requirePerm("permissions.update"), d.PermHandler.Update)
+	app.Delete("/permissions/:id", authMW, requirePerm("permissions.delete"), d.PermHandler.Delete)
+	app.Post("/users/:id/permissions", authMW, requirePerm("permissions.grant"), d.PermHandler.Grant)
+	app.Delete("/users/:id/permissions/:permissionId", authMW, requirePerm("permissions.revoke"), d.PermHandler.Revoke)
 
 	// Auditoria
 	app.Get("/audit-logs", authMW, requirePerm("audit_logs.read"), d.AuditHandler.List)

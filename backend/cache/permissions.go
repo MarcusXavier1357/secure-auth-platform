@@ -51,3 +51,25 @@ func (p *PermissionCache) Set(ctx context.Context, userID int64, codes []string)
 func (p *PermissionCache) Invalidate(ctx context.Context, userID int64) error {
 	return p.client.rdb.Del(ctx, p.key(userID)).Err()
 }
+
+// FlushAll remove todo o cache de permissões (ex.: após migration que altera grants).
+func (p *PermissionCache) FlushAll(ctx context.Context) error {
+	pattern := p.client.key("permissions:user:*")
+	var cursor uint64
+	for {
+		keys, next, err := p.client.rdb.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return err
+		}
+		if len(keys) > 0 {
+			if err := p.client.rdb.Del(ctx, keys...).Err(); err != nil {
+				return err
+			}
+		}
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+	return nil
+}

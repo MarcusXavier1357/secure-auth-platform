@@ -134,6 +134,7 @@ func New(cfg Config) (*App, error) {
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	permRepo := repository.NewPermissionRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
 	auditRepo := repository.NewAuditRepository(db)
 
 	permCache := cache.NewPermissionCache(redisClient, cfg.PermCacheTTL)
@@ -146,11 +147,14 @@ func New(cfg Config) (*App, error) {
 	}
 
 	auditSvc := service.NewAuditService(auditRepo)
-	permSvc := service.NewPermissionService(permRepo, userRepo, permCache, auditSvc)
+	permSvc := service.NewPermissionService(permRepo, userRepo, roleRepo, permCache, auditSvc)
 	authSvc := service.NewAuthService(
-		userRepo, sessionRepo, tieredLimiter, lastLoginStore, geoLookup, auditSvc,
+		userRepo, sessionRepo, permSvc, tieredLimiter, lastLoginStore, geoLookup, auditSvc,
 		jwtKeys, cfg.AccessTTL, cfg.RefreshTTL, cfg.ImpossibleTravelWindow,
 	)
+	if err := permCache.FlushAll(context.Background()); err != nil {
+		slog.Warn("failed to flush permission cache on startup", "error", err)
+	}
 	userSvc := service.NewUserService(userRepo, sessionRepo, permSvc, auditSvc)
 
 	fiberApp := fiber.New(fiber.Config{

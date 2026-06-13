@@ -44,6 +44,7 @@ type TokenPair struct {
 type AuthService struct {
 	users         *repository.UserRepository
 	sessions      *repository.SessionRepository
+	permissions   *PermissionService
 	tieredLimiter *cache.TieredRateLimiter
 	lastLogin     *cache.LastLoginStore
 	geo           geoip.Lookup
@@ -59,6 +60,7 @@ type AuthService struct {
 func NewAuthService(
 	users *repository.UserRepository,
 	sessions *repository.SessionRepository,
+	permissions *PermissionService,
 	tieredLimiter *cache.TieredRateLimiter,
 	lastLogin *cache.LastLoginStore,
 	geo geoip.Lookup,
@@ -75,6 +77,7 @@ func NewAuthService(
 	return &AuthService{
 		users:         users,
 		sessions:      sessions,
+		permissions:   permissions,
 		tieredLimiter: tieredLimiter,
 		lastLogin:     lastLogin,
 		geo:           geo,
@@ -147,6 +150,7 @@ func (s *AuthService) Login(ctx context.Context, email, passwordPlain, ip, userA
 		map[string]any{"email": email, "ip": ip, "sessionId": pair.SessionID})
 
 	s.checkImpossibleTravel(ctx, user.ID, ip)
+	s.permissions.InvalidateUserCache(ctx, user.ID)
 
 	return pair, nil
 }
@@ -249,6 +253,8 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 
 	s.audit.Log(ctx, &user.ID, "session.refreshed", "session", &oldSessionID, nil,
 		map[string]any{"oldSessionId": oldSessionID, "newSessionId": pair.SessionID})
+
+	s.permissions.InvalidateUserCache(ctx, user.ID)
 
 	return pair, nil
 }

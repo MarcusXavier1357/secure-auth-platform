@@ -20,4 +20,9 @@ describe("matchPermission", () => {
   it("matches global wildcard", () => {
     expect(matchPermission(["*"], "anything.here")).toBe(true);
   });
+
+  it("does not treat legacy manage codes as module wildcards", () => {
+    expect(matchPermission(["users.manage"], "users.read")).toBe(false);
+    expect(matchPermission(["permissions.manage"], "permissions.grant")).toBe(false);
+  });
 });

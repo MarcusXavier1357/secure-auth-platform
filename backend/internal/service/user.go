@@ -91,14 +91,45 @@ func (s *UserService) Create(ctx context.Context, actorID int64, input CreateUse
 }
 
 func (s *UserService) Update(ctx context.Context, actorID, userID int64, input UpdateUserInput) (*models.User, error) {
-	// Auto-desativação causaria lockout (ex.: último admin do sistema).
 	if input.Active != nil && !*input.Active && actorID == userID {
 		return nil, ErrCannotDeactivateSelf
+	}
+
+	if input.Name != nil || input.Email != nil || input.RoleID != nil {
+		if err := s.requirePermission(ctx, actorID, "users.update"); err != nil {
+			return nil, err
+		}
+	}
+	if input.Password != nil {
+		if err := s.requirePermission(ctx, actorID, "users.password.reset"); err != nil {
+			return nil, err
+		}
+	}
+	if input.Active != nil {
+		if err := s.requirePermission(ctx, actorID, "users.deactivate"); err != nil {
+			return nil, err
+		}
 	}
 
 	user, err := s.users.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+
+	if input.Active != nil && !*input.Active && user.Active {
+		hasStar, err := s.userHasPermissionCode(ctx, userID, "*")
+		if err != nil {
+			return nil, err
+		}
+		if hasStar {
+			count, err := s.permissions.CountActiveUsersWithStar(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if count <= 1 {
+				return nil, ErrLastAdmin
+			}
+		}
 	}
 
 	oldData := map[string]any{
@@ -109,12 +140,21 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 	wasActive := user.Active
 	deactivated := false
 	activated := false
+	passwordChanged := false
+
 	if input.Name != nil {
 		user.Name = *input.Name
 	}
 	if input.Email != nil {
 		if err := validateEmail(*input.Email); err != nil {
 			return nil, err
+		}
+		if *input.Email != user.Email {
+			if existing, err := s.users.FindByEmail(ctx, *input.Email); err == nil && existing.ID != userID {
+				return nil, ErrEmailTaken
+			} else if err != nil && !errors.Is(err, repository.ErrNotFound) {
+				return nil, err
+			}
 		}
 		user.Email = *input.Email
 	}
@@ -135,6 +175,7 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 			return nil, err
 		}
 		user.PasswordHash = hash
+		passwordChanged = true
 	}
 
 	if err := s.users.Update(ctx, user); err != nil {
@@ -142,7 +183,6 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 	}
 
 	if deactivated {
-		// Usuário desativado: revogar sessões e invalidar cache de permissões.
 		if err := s.sessions.RevokeAllByUser(ctx, userID); err != nil {
 			slog.Error("failed to revoke sessions for deactivated user",
 				"userId", userID, "error", err)
@@ -150,11 +190,15 @@ func (s *UserService) Update(ctx context.Context, actorID, userID int64, input U
 		s.permissions.InvalidateUserCache(ctx, userID)
 	}
 
-	s.audit.Log(ctx, &actorID, "user.updated", "user", &userID, oldData,
-		map[string]any{
-			"name": user.Name, "email": user.Email,
-			"roleId": user.RoleID, "active": user.Active,
-		})
+	newData := map[string]any{
+		"name": user.Name, "email": user.Email,
+		"roleId": user.RoleID, "active": user.Active,
+	}
+	if passwordChanged {
+		newData["passwordChanged"] = true
+	}
+
+	s.audit.Log(ctx, &actorID, "user.updated", "user", &userID, oldData, newData)
 
 	if deactivated && wasActive {
 		s.audit.Log(ctx, &actorID, "user.deactivated", "user", &userID, oldData,

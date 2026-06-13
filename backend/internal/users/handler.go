@@ -144,6 +144,15 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		if errors.Is(err, service.ErrCannotDeactivateSelf) {
 			return fiber.NewError(fiber.StatusConflict, "cannot deactivate your own account")
 		}
+		if errors.Is(err, service.ErrLastAdmin) {
+			return fiber.NewError(fiber.StatusConflict, "cannot deactivate the last admin")
+		}
+		if errors.Is(err, service.ErrEmailTaken) {
+			return fiber.NewError(fiber.StatusConflict, "email already in use")
+		}
+		if errors.Is(err, service.ErrForbidden) {
+			return fiber.NewError(fiber.StatusForbidden, "missing permission for this update")
+		}
 		if errors.Is(err, service.ErrInvalidEmail) {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid email format")
 		}

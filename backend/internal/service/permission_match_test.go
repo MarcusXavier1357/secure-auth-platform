@@ -24,4 +24,11 @@ func TestMatchPermission(t *testing.T) {
 	if !matchPermission([]string{"*"}, "anything.here") {
 		t.Error("global wildcard should match any permission")
 	}
+
+	if matchPermission([]string{"users.manage"}, "users.read") {
+		t.Error("legacy users.manage must not match users.read")
+	}
+	if matchPermission([]string{"permissions.manage"}, "permissions.grant") {
+		t.Error("legacy permissions.manage must not match permissions.grant")
+	}
 }

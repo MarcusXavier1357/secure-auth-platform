@@ -44,8 +44,6 @@ var (
 func TestMain(m *testing.M) {
 	adminDSN := getenv("TEST_PG_ADMIN_URL",
 		"postgres://auth:auth_dev_password@127.0.0.1:55432/auth?sslmode=disable")
-	testDSN := getenv("TEST_PG_URL",
-		"postgres://auth:auth_dev_password@127.0.0.1:55432/auth_test?sslmode=disable")
 	redisURL := getenv("TEST_REDIS_URL", "redis://127.0.0.1:6379/1")
 
 	if err := recreateTestDatabase(adminDSN); err != nil {

@@ -24,7 +24,7 @@ describe("RequirePermission", () => {
       <MemoryRouter initialEntries={["/secret"]}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route element={<RequirePermission code="users.manage" />}>
+          <Route element={<RequirePermission code="users.read" />}>
             <Route path="/secret" element={<Secret />} />
           </Route>
         </Routes>
@@ -40,7 +40,7 @@ describe("RequirePermission", () => {
       <MemoryRouter initialEntries={["/secret"]}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route element={<RequirePermission code="users.manage" />}>
+          <Route element={<RequirePermission code="users.read" />}>
             <Route path="/secret" element={<Secret />} />
           </Route>
         </Routes>

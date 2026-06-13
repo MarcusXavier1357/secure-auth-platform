@@ -2,6 +2,7 @@ package permissions
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -27,6 +28,82 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	return c.JSON(list)
 }
 
+type createPermissionRequest struct {
+	Code        string `json:"code"`
+	Description string `json:"description"`
+}
+
+func (h *Handler) Create(c *fiber.Ctx) error {
+	var req createPermissionRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
+	}
+	if strings.TrimSpace(req.Code) == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "code is required")
+	}
+
+	perm, err := h.perms.Create(c.Context(), middleware.UserID(c), service.CreatePermissionInput{
+		Code:        req.Code,
+		Description: req.Description,
+	})
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidPermissionCode) {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid permission code")
+		}
+		if errors.Is(err, service.ErrPermissionCodeTaken) {
+			return fiber.NewError(fiber.StatusConflict, "permission code already exists")
+		}
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(perm)
+}
+
+type updatePermissionRequest struct {
+	Description string `json:"description"`
+}
+
+func (h *Handler) Update(c *fiber.Ctx) error {
+	id, err := httputil.ParsePositiveInt64(c.Params("id"), "id")
+	if err != nil {
+		return err
+	}
+
+	var req updatePermissionRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
+	}
+
+	perm, err := h.perms.UpdateDescription(c.Context(), middleware.UserID(c), id, req.Description)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "permission not found")
+		}
+		return err
+	}
+	return c.JSON(perm)
+}
+
+func (h *Handler) Delete(c *fiber.Ctx) error {
+	id, err := httputil.ParsePositiveInt64(c.Params("id"), "id")
+	if err != nil {
+		return err
+	}
+
+	if err := h.perms.Delete(c.Context(), middleware.UserID(c), id); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "permission not found")
+		}
+		if errors.Is(err, service.ErrProtectedPermission) {
+			return fiber.NewError(fiber.StatusConflict, "protected permission")
+		}
+		if errors.Is(err, service.ErrPermissionInUse) {
+			return fiber.NewError(fiber.StatusConflict, "permission in use")
+		}
+		return err
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 type grantRequest struct {
 	PermissionID int64 `json:"permissionId"`
 }
@@ -45,6 +122,9 @@ func (h *Handler) Grant(c *fiber.Ctx) error {
 	if err := h.perms.Grant(c.Context(), middleware.UserID(c), userID, req.PermissionID); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "user or permission not found")
+		}
+		if errors.Is(err, service.ErrForbidden) {
+			return fiber.NewError(fiber.StatusForbidden, "cannot grant permission you do not have")
 		}
 		return err
 	}
@@ -68,4 +148,12 @@ func (h *Handler) Revoke(c *fiber.Ctx) error {
 		return err
 	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) ListRoles(c *fiber.Ctx) error {
+	roles, err := h.perms.ListRoles(c.Context())
+	if err != nil {
+		return err
+	}
+	return c.JSON(roles)
 }

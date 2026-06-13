@@ -25,7 +25,7 @@ function Probe() {
   return (
     <div>
       <span>{user.email}</span>
-      <span>{hasPermission("users.manage") ? "yes" : "no"}</span>
+      <span>{hasPermission("users.read") ? "yes" : "no"}</span>
     </div>
   );
 }
@@ -50,7 +50,7 @@ describe("AuthProvider", () => {
     tryRefresh.mockResolvedValue(true);
     apiMe.mockResolvedValue({
       user: { id: 1, name: "Admin", email: "admin@test.dev", active: true, roleId: null },
-      permissions: ["users.manage"],
+      permissions: ["users.read"],
     });
 
     render(

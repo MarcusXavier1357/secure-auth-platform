@@ -88,3 +88,54 @@ func (r *PermissionRepository) GrantAll(ctx context.Context, userID int64) error
 	).Exec(ctx)
 	return err
 }
+
+func (r *PermissionRepository) Create(ctx context.Context, permission *models.Permission) error {
+	_, err := r.db.NewInsert().Model(permission).Exec(ctx)
+	return err
+}
+
+func (r *PermissionRepository) UpdateDescription(ctx context.Context, id int64, description string) error {
+	res, err := r.db.NewUpdate().
+		Model((*models.Permission)(nil)).
+		Set("description = ?", description).
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *PermissionRepository) Delete(ctx context.Context, id int64) error {
+	res, err := r.db.NewDelete().
+		Model((*models.Permission)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *PermissionRepository) CountAssignments(ctx context.Context, permissionID int64) (int, error) {
+	return r.db.NewSelect().
+		Model((*models.UserPermission)(nil)).
+		Where("permission_id = ?", permissionID).
+		Count(ctx)
+}
+
+func (r *PermissionRepository) CountActiveUsersWithCode(ctx context.Context, code string) (int, error) {
+	return r.db.NewSelect().
+		Model((*models.User)(nil)).
+		Join("JOIN user_permissions AS up ON up.user_id = u.id").
+		Join("JOIN permissions AS p ON p.id = up.permission_id").
+		Where("p.code = ?", code).
+		Where("u.active = TRUE").
+		Count(ctx)
+}

@@ -11,6 +11,7 @@ import (
 type PermissionService struct {
 	permRepo  *repository.PermissionRepository
 	userRepo  *repository.UserRepository
+	roleRepo  *repository.RoleRepository
 	permCache *cache.PermissionCache
 	audit     *AuditService
 }
@@ -18,10 +19,11 @@ type PermissionService struct {
 func NewPermissionService(
 	permRepo *repository.PermissionRepository,
 	userRepo *repository.UserRepository,
+	roleRepo *repository.RoleRepository,
 	permCache *cache.PermissionCache,
 	audit *AuditService,
 ) *PermissionService {
-	return &PermissionService{permRepo: permRepo, userRepo: userRepo, permCache: permCache, audit: audit}
+	return &PermissionService{permRepo: permRepo, userRepo: userRepo, roleRepo: roleRepo, permCache: permCache, audit: audit}
 }
 
 // HasPermission verifica via cache-aside: Redis primeiro, PostgreSQL no miss.
@@ -63,15 +65,27 @@ func (s *PermissionService) Grant(ctx context.Context, actorID, userID, permissi
 	if _, err := s.userRepo.FindByID(ctx, userID); err != nil {
 		return err
 	}
-	if _, err := s.permRepo.FindByID(ctx, permissionID); err != nil {
+	perm, err := s.permRepo.FindByID(ctx, permissionID)
+	if err != nil {
 		return err
 	}
+
+	allowed, err := s.actorCanGrant(ctx, actorID, perm.Code)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return ErrForbidden
+	}
+
 	if err := s.permRepo.Grant(ctx, userID, permissionID); err != nil {
 		return err
 	}
 	s.invalidateCache(ctx, userID)
 	s.audit.Log(ctx, &actorID, "permission.granted", "user_permissions", &userID,
-		nil, map[string]any{"userId": userID, "permissionId": permissionID})
+		nil, map[string]any{
+			"userId": userID, "permissionId": permissionID, "permissionCode": perm.Code,
+		})
 	return nil
 }
 
@@ -79,7 +93,8 @@ func (s *PermissionService) Revoke(ctx context.Context, actorID, userID, permiss
 	if _, err := s.userRepo.FindByID(ctx, userID); err != nil {
 		return err
 	}
-	if _, err := s.permRepo.FindByID(ctx, permissionID); err != nil {
+	perm, err := s.permRepo.FindByID(ctx, permissionID)
+	if err != nil {
 		return err
 	}
 	if err := s.permRepo.Revoke(ctx, userID, permissionID); err != nil {
@@ -87,7 +102,9 @@ func (s *PermissionService) Revoke(ctx context.Context, actorID, userID, permiss
 	}
 	s.invalidateCache(ctx, userID)
 	s.audit.Log(ctx, &actorID, "permission.revoked", "user_permissions", &userID,
-		map[string]any{"userId": userID, "permissionId": permissionID}, nil)
+		map[string]any{
+			"userId": userID, "permissionId": permissionID, "permissionCode": perm.Code,
+		}, nil)
 	return nil
 }
 
@@ -95,6 +112,10 @@ func (s *PermissionService) Revoke(ctx context.Context, actorID, userID, permiss
 // todas as suas sessões.
 func (s *PermissionService) InvalidateUserCache(ctx context.Context, userID int64) {
 	s.invalidateCache(ctx, userID)
+}
+
+func (s *PermissionService) CountActiveUsersWithStar(ctx context.Context) (int, error) {
+	return s.permRepo.CountActiveUsersWithCode(ctx, "*")
 }
 
 func (s *PermissionService) invalidateCache(ctx context.Context, userID int64) {

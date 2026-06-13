@@ -21,7 +21,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadMe = useCallback(async () => {
     const me = await api.me();
     setUser(me.user);
-    setPermissions(me.permissions);
+    const codes =
+      me.permissions.length > 0
+        ? me.permissions
+        : (me.user.permissions?.map((p) => p.code) ?? []);
+    setPermissions(codes);
   }, []);
 
   // Na carga da página, tenta restaurar a sessão pelo cookie de refresh.

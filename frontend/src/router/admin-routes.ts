@@ -4,7 +4,7 @@ export const adminRoutes = [
   {
     id: "users",
     path: paths.users(),
-    permission: "users.manage",
+    permission: "users.read",
     navLabel: "Usuários",
     cardTitle: "Usuários",
     cardDescription: "Gerenciar contas e acessos.",
@@ -12,7 +12,7 @@ export const adminRoutes = [
   {
     id: "permissions",
     path: paths.permissions(),
-    permission: "permissions.manage",
+    permission: "permissions.read",
     navLabel: "Permissões",
     cardTitle: "Permissões",
     cardDescription: "Conceder e revogar permissões.",

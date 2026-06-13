@@ -96,9 +96,21 @@ func TestMeReturnsUserAndPermissions(t *testing.T) {
 	if body.User.Email != adminEmail {
 		t.Errorf("expected email %s, got %s", adminEmail, body.User.Email)
 	}
-	// O seed concede todas as permissões (inclui wildcard *).
-	if len(body.Permissions) != 5 {
-		t.Errorf("expected 5 permissions for admin, got %d", len(body.Permissions))
+	// O seed concede todas as permissões do catálogo (inclui wildcard *).
+	if len(body.Permissions) < 14 {
+		t.Errorf("expected at least 14 permissions for admin, got %d", len(body.Permissions))
+	}
+	hasStar := false
+	for _, code := range body.Permissions {
+		if code == "users.manage" || code == "permissions.manage" {
+			t.Errorf("legacy permission %q should not be granted to admin", code)
+		}
+		if code == "*" {
+			hasStar = true
+		}
+	}
+	if !hasStar {
+		t.Error("expected admin to have wildcard * permission")
 	}
 }
 

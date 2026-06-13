@@ -89,7 +89,7 @@ func TestGrantAndRevokePermissionInvalidatesCache(t *testing.T) {
 	admin.mustLogin(adminEmail, adminPassword)
 
 	user := createUser(t, admin, "Promovido", "promovido@test.dev", "Senha12345!")
-	permID := findPermissionID(t, admin, "users.manage")
+	permID := findPermissionID(t, admin, "users.read")
 
 	promoted := newClient(t)
 	promoted.mustLogin(user.Email, "Senha12345!")

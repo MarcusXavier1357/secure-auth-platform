@@ -62,6 +62,30 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   return res.json();
 }
 
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  password: string;
+  roleId?: number | null;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  password?: string;
+  roleId?: number | null;
+  active?: boolean;
+}
+
+export interface CreatePermissionInput {
+  code: string;
+  description: string;
+}
+
+export interface UpdatePermissionInput {
+  description: string;
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<{ accessToken: string }>("/auth/login", {
@@ -75,10 +99,39 @@ export const api = {
 
   users: {
     list: () => request<UserWithPermissions[]>("/users"),
+    get: (id: number) => request<UserWithPermissions>(`/users/${id}`),
+    create: (input: CreateUserInput) =>
+      request<User>("/users", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    update: (id: number, input: UpdateUserInput) =>
+      request<User>(`/users/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+  },
+
+  roles: {
+    list: () => request<Role[]>("/roles"),
   },
 
   permissions: {
     list: () => request<Permission[]>("/permissions"),
+    create: (input: CreatePermissionInput) =>
+      request<Permission>("/permissions", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    update: (id: number, input: UpdatePermissionInput) =>
+      request<Permission>(`/permissions/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+    delete: (id: number) =>
+      request<void>(`/permissions/${id}`, {
+        method: "DELETE",
+      }),
     grant: (userId: number, permissionId: number) =>
       request<void>(`/users/${userId}/permissions`, {
         method: "POST",
@@ -95,6 +148,12 @@ export const api = {
       request<AuditLog[]>(`/audit-logs?limit=${limit}&offset=${offset}`),
   },
 };
+
+export interface Role {
+  id: number;
+  name: string;
+  description: string;
+}
 
 export interface User {
   id: number;
@@ -127,6 +186,6 @@ export interface AuditLog {
 }
 
 export interface MeResponse {
-  user: User;
+  user: UserWithPermissions;
   permissions: string[];
 }

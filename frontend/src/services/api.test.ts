@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, getAccessToken, request, setAccessToken, tryRefresh } from "./api";
+import { ApiError, api, getAccessToken, request, setAccessToken, tryRefresh } from "./api";
 
 describe("api", () => {
   beforeEach(() => {
@@ -60,5 +60,14 @@ describe("api", () => {
     await expect(request("/users")).rejects.toSatisfy((err: unknown) => {
       return err instanceof ApiError && err.status === 403;
     });
+  });
+
+  it("exposes granular user and permission API methods", () => {
+    expect(typeof api.users.create).toBe("function");
+    expect(typeof api.users.update).toBe("function");
+    expect(typeof api.roles.list).toBe("function");
+    expect(typeof api.permissions.create).toBe("function");
+    expect(typeof api.permissions.update).toBe("function");
+    expect(typeof api.permissions.delete).toBe("function");
   });
 });
