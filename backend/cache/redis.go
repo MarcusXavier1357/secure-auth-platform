@@ -29,3 +29,8 @@ func (c *Client) key(parts string) string {
 func (c *Client) Ping(ctx context.Context) error {
 	return c.rdb.Ping(ctx).Err()
 }
+
+// Close encerra o cliente Redis (útil em testes que simulam indisponibilidade).
+func (c *Client) Close() error {
+	return c.rdb.Close()
+}

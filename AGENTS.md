@@ -77,6 +77,7 @@ if errors.Is(err, service.ErrInvalidCredentials) {
 ## Testes
 
 - Todos os testes ficam em `backend/tests/` (pacote `tests`), estilo ponta a ponta: app real via `app.New` + `Fiber.Test()`, Postgres e Redis reais.
+- Unitários adicionais: `internal/password/`, `internal/service/permission_match_test.go`.
 - Pré-requisito: `docker compose up -d postgres redis` (Postgres publica em `127.0.0.1:55432` no host).
 - A suite recria o banco `auth_test` e usa Redis db 1 — nunca aponte testes para o banco de dev.
 - Rodar: `go test ./tests/ -v` em `backend/`.
@@ -93,6 +94,7 @@ if errors.Is(err, service.ErrInvalidCredentials) {
 - Páginas admin entram com `lazy(() => import(...))` em `router/index.tsx`; o `Suspense` já existe no `ProtectedLayout`.
 - Dados de servidor nas páginas: TanStack Query (`useQuery`/`useMutation` + invalidação). Estado de sessão fica no `AuthProvider`.
 - Componentes funcionais, hooks para lógica reutilizável, Tailwind para estilo.
+- Testes unitários com Vitest (`npm run test`): `permission.ts`, `api.ts`, `AuthProvider`, `RequireAuth`, `RequirePermission`.
 
 ## Convenções gerais
 
@@ -101,7 +103,7 @@ if errors.Is(err, service.ErrInvalidCredentials) {
 - Código simples e linear: early returns, sem abstrações especulativas, sem interfaces sem segundo implementador.
 - Comentários explicam *por quê* (trade-offs, segurança), não *o quê*.
 - Lint: `golangci-lint run ./...` no backend (config em `backend/.golangci.yml`; regra `exported` do revive desabilitada de propósito — não adicione comentários cerimoniais); `npm run lint` e `npm run format` no frontend.
-- Antes de finalizar: `go build ./...`, `go vet ./...`, `golangci-lint run ./...`, `go test ./tests/` no backend; `npm run lint` e `npm run build` no frontend.
+- Antes de finalizar: `go build ./...`, `go vet ./...`, `golangci-lint run ./...`, `go test ./tests/` no backend; `npm run test`, `npm run lint` e `npm run build` no frontend.
 
 ## Comandos úteis
 

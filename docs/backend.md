@@ -106,7 +106,9 @@ Regras de negócio notáveis: email validado com `net/mail`; senha mínima de 8 
 
 ## Testes
 
-Suite ponta a ponta em `backend/tests/`: app real via `app.New` + `Fiber.Test()`, Postgres (banco `auth_test` recriado por execução) e Redis (db 1) reais. Cobre login, rotação de refresh (nova sessão + detecção de reuse), fingerprint de sessão, logout, rate limit escalonado, wildcards de permissão, JWT RS256, `security.alert`, viagem impossível (GeoIP mock), migração Argon2id, 401/403, grant/revoke, desativação e auditoria expandida.
+Suite ponta a ponta em `backend/tests/`: app real via `app.New` + `Fiber.Test()`, Postgres (banco `auth_test` recriado por execução) e Redis (db 1) reais. Unitários em `internal/password/` e `permission_match_test.go`. Cobre login, rotação de refresh (nova sessão + detecção de reuse), fingerprint de sessão, logout, rate limit escalonado, wildcards de permissão, JWT RS256, `security.alert`, viagem impossível (GeoIP mock), migração Argon2id, health 503, login 503 com Redis down, JWT expirado, `GET /users/:id`, validações grant/revoke, 401/403, grant/revoke, desativação e auditoria expandida.
+
+Frontend: Vitest (`npm run test`) para `permission.ts`, `api.ts`, `AuthProvider`, `RequireAuth`, `RequirePermission`.
 
 ```bash
 cd infra && docker compose up -d postgres redis
