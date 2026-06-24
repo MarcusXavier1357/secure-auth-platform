@@ -349,13 +349,19 @@ function CatalogModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl animate-scale-in">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800/60">
-          <h3 className="text-lg font-bold text-white font-sans">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in cursor-pointer"
+      onClick={onClose}
+    >
+      <div 
+        className="w-full max-w-md rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between pb-4 border-b border-app-border/60">
+          <h3 className="text-lg font-bold text-app-text font-sans">
             {isCreate ? "Nova Permissão" : "Editar Permissão"}
           </h3>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button type="button" onClick={onClose} className="text-app-muted hover:text-app-text transition-colors cursor-pointer">
             ✕
           </button>
         </div>
@@ -363,49 +369,49 @@ function CatalogModal({
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           {isCreate ? (
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Código identificador</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-app-muted">Código identificador</label>
               <input
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="ex.: logs.visualizar"
-                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-2.5 font-mono text-sm text-white outline-none focus:border-indigo-500"
+                className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 font-mono text-sm text-app-text outline-none focus:border-indigo-500"
               />
-              <p className="text-[10px] text-slate-500">Padrão do sistema: recurso.acao (apenas letras minúsculas)</p>
+              <p className="text-[10px] text-app-muted/80">Padrão do sistema: recurso.acao (apenas letras minúsculas)</p>
             </div>
           ) : (
-            <div className="rounded-xl bg-slate-950/40 p-4 border border-slate-850">
-              <p className="font-mono text-sm text-indigo-300">{code}</p>
+            <div className="rounded-xl bg-app-bg/40 p-4 border border-app-border">
+              <p className="font-mono text-sm text-indigo-400 dark:text-indigo-300">{code}</p>
             </div>
           )}
           
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Descrição detalhada</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-app-muted">Descrição detalhada</label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descreva o escopo deste acesso..."
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
+              className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text outline-none focus:border-indigo-500"
             />
           </div>
           
           {(localError || error) && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-500 dark:text-red-400">
               {localError ?? error}
             </div>
           )}
           
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800/60">
+          <div className="flex justify-end gap-3 pt-4 border-t border-app-border/60">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-800 bg-slate-955 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800 transition"
+              className="rounded-xl border border-app-border bg-app-bg/40 px-5 py-2.5 text-sm font-semibold text-app-text hover:bg-app-card-hover transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-indigo-500 transition disabled:opacity-50"
+              className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-indigo-500 transition disabled:opacity-50 cursor-pointer"
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
@@ -430,15 +436,21 @@ function ConfirmDialog({
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl animate-scale-in">
-        <h3 className="text-base font-bold text-white">{title}</h3>
-        <p className="mt-3 text-sm text-slate-400 leading-relaxed">{message}</p>
-        <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-800/60">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in cursor-pointer"
+      onClick={onCancel}
+    >
+      <div 
+        className="w-full max-w-md rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-base font-bold text-app-text">{title}</h3>
+        <p className="mt-3 text-sm text-app-muted leading-relaxed">{message}</p>
+        <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-app-border/60">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-xl border border-slate-800 bg-slate-955 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800 transition"
+            className="rounded-xl border border-app-border bg-app-bg/40 px-4 py-2 text-sm font-semibold text-app-text hover:bg-app-card-hover transition cursor-pointer"
           >
             Cancelar
           </button>
@@ -446,7 +458,7 @@ function ConfirmDialog({
             type="button"
             disabled={pending}
             onClick={onConfirm}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-indigo-500 transition active:scale-95 disabled:opacity-50"
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-indigo-500 transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             Confirmar
           </button>

@@ -211,8 +211,14 @@ export default function UsersPage() {
       )}
 
       {toggleTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in cursor-pointer"
+          onClick={() => setToggleTarget(null)}
+        >
+          <div 
+            className="w-full max-w-md rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-base font-bold text-app-text">
               {toggleTarget.active ? "Desativar usuário" : "Ativar usuário"}
             </h3>
@@ -225,7 +231,7 @@ export default function UsersPage() {
               <button
                 type="button"
                 onClick={() => setToggleTarget(null)}
-                className="rounded-xl border border-app-border bg-app-bg/60 px-4 py-2 text-sm font-semibold text-app-text hover:bg-app-card-hover transition"
+                className="rounded-xl border border-app-border bg-app-bg/60 px-4 py-2 text-sm font-semibold text-app-text hover:bg-app-card-hover transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -238,7 +244,7 @@ export default function UsersPage() {
                     active: !toggleTarget.active,
                   })
                 }
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-indigo-500 transition active:scale-95 disabled:opacity-50"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-indigo-500 transition active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 Confirmar
               </button>

@@ -206,16 +206,22 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
   const showFields = !isEdit || canUpdate;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl animate-scale-in">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800/60">
-          <h3 className="text-lg font-bold text-white">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in cursor-pointer"
+      onClick={onClose}
+    >
+      <div 
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between pb-4 border-b border-app-border/60">
+          <h3 className="text-lg font-bold text-app-text">
             {isEdit ? "Editar Usuário" : "Criar Novo Usuário"}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-app-muted hover:text-app-text transition-colors cursor-pointer"
           >
             ✕
           </button>
@@ -225,19 +231,19 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
           {showFields ? (
             <>
               <div className="space-y-1.5">
-                <label htmlFor="user-name" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <label htmlFor="user-name" className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
                   Nome Completo
                 </label>
                 <input
                   id="user-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800/80 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text placeholder-app-muted/50 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                   placeholder="Nome do usuário"
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="user-email" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <label htmlFor="user-email" className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
                   Endereço de E-mail
                 </label>
                 <input
@@ -245,23 +251,23 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800/80 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text placeholder-app-muted/50 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                   placeholder="exemplo@empresa.com"
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="user-role" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <label htmlFor="user-role" className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
                   Perfil de Acesso (Role)
                 </label>
                 <select
                   id="user-role"
                   value={roleId ?? ""}
                   onChange={(e) => setRoleId(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full rounded-xl border border-slate-800/80 bg-slate-950/60 px-4 py-2.5 text-sm text-white outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 >
-                  <option value="" className="bg-slate-900">Nenhum</option>
+                  <option value="" className="bg-app-bg text-app-text">Nenhum</option>
                   {roles?.map((role) => (
-                    <option key={role.id} value={role.id} className="bg-slate-900">
+                    <option key={role.id} value={role.id} className="bg-app-bg text-app-text">
                       {role.name}
                     </option>
                   ))}
@@ -273,8 +279,8 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
           {(!isEdit || canResetPassword) && (() => {
             const strength = checkPasswordStrength(password, name, email);
             return (
-              <div className="space-y-4 rounded-2xl border border-slate-800/80 bg-slate-950/40 p-5">
-                <p className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <div className="space-y-4 rounded-2xl border border-app-border bg-app-bg/40 p-5">
+                <p className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
                   {isEdit ? "Redefinir senha (opcional)" : "Definir senha de acesso"}
                 </p>
                 <div className="space-y-3">
@@ -283,30 +289,30 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
                     placeholder={isEdit ? "Nova senha" : "Senha (mínimo de 12 caracteres)"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-800/80 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text placeholder-app-muted/50 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                   />
                   <input
                     type="password"
                     placeholder="Confirmar nova senha"
                     value={passwordConfirm}
                     onChange={(e) => setPasswordConfirm(e.target.value)}
-                    className="w-full rounded-xl border border-slate-800/80 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text placeholder-app-muted/50 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                   />
                 </div>
 
                 {password && (
-                  <div className="space-y-3 mt-3 pt-3 border-t border-slate-800/60">
+                  <div className="space-y-3 mt-3 pt-3 border-t border-app-border/60">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-medium">Complexidade da senha:</span>
+                      <span className="text-app-muted font-medium">Complexidade da senha:</span>
                       <span className={
-                        strength.score <= 1 ? "text-red-400 font-bold" :
-                        strength.score <= 3 ? "text-yellow-400 font-bold" :
-                        "text-emerald-400 font-bold"
+                        strength.score <= 1 ? "text-red-450 font-bold" :
+                        strength.score <= 3 ? "text-yellow-500 dark:text-yellow-400 font-bold" :
+                        "text-emerald-500 dark:text-emerald-400 font-bold"
                       }>
                         {strength.score <= 1 ? "Fraca" : strength.score <= 3 ? "Média" : "Forte"}
                       </span>
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-slate-900 overflow-hidden">
+                    <div className="h-1.5 w-full rounded-full bg-app-bg overflow-hidden border border-app-border/20">
                       <div
                         className={`h-full transition-all duration-300 ${
                           strength.score <= 1 ? "bg-red-500 w-1/3" :
@@ -316,28 +322,28 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
                       />
                     </div>
 
-                    <ul className="text-[11px] space-y-1.5 text-slate-400 mt-2">
+                    <ul className="text-[11px] space-y-1.5 text-app-muted mt-2">
                       <li className="flex items-center gap-2">
-                        <span className={strength.hasLength ? "text-emerald-400" : "text-slate-600"}>
+                        <span className={strength.hasLength ? "text-emerald-500 dark:text-emerald-400 font-bold" : "text-app-muted/40"}>
                           {strength.hasLength ? "●" : "○"}
                         </span>
-                        <span className={strength.hasLength ? "text-slate-200" : ""}>
+                        <span className={strength.hasLength ? "text-app-text" : ""}>
                           Mínimo de 12 caracteres
                         </span>
                       </li>
                       <li className="flex items-center gap-2">
-                        <span className={(strength.hasLower && strength.hasUpper && strength.hasDigit) ? "text-emerald-400" : "text-slate-600"}>
+                        <span className={(strength.hasLower && strength.hasUpper && strength.hasDigit) ? "text-emerald-500 dark:text-emerald-400 font-bold" : "text-app-muted/40"}>
                           {(strength.hasLower && strength.hasUpper && strength.hasDigit) ? "●" : "○"}
                         </span>
-                        <span className={(strength.hasLower && strength.hasUpper && strength.hasDigit) ? "text-slate-200" : ""}>
+                        <span className={(strength.hasLower && strength.hasUpper && strength.hasDigit) ? "text-app-text" : ""}>
                           Letra maiúscula, minúscula e número
                         </span>
                       </li>
                       <li className="flex items-center gap-2">
-                        <span className={strength.noSequenceOrRepetition ? "text-emerald-400" : "text-slate-600"}>
+                        <span className={strength.noSequenceOrRepetition ? "text-emerald-500 dark:text-emerald-400 font-bold" : "text-app-muted/40"}>
                           {strength.noSequenceOrRepetition ? "●" : "○"}
                         </span>
-                        <span className={strength.noSequenceOrRepetition ? "text-slate-200" : ""}>
+                        <span className={strength.noSequenceOrRepetition ? "text-app-text" : ""}>
                           Sem padrões previsíveis, sequências ou dados pessoais
                         </span>
                       </li>
@@ -349,23 +355,23 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
           })()}
 
           {(localError || error) && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-500 dark:text-red-400">
               <span className="font-semibold">Erro: </span> {localError ?? error}
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-800/60">
+          <div className="flex justify-end gap-3 pt-3 border-t border-app-border/60">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-800 bg-slate-950/40 px-5 py-2.5 text-sm font-semibold text-slate-300 transition-all hover:bg-slate-800"
+              className="rounded-xl border border-app-border bg-app-bg/40 px-5 py-2.5 text-sm font-semibold text-app-text transition-all hover:bg-app-card-hover cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               {pending ? "Salvando..." : isEdit ? "Salvar alterações" : "Criar usuário"}
             </button>
