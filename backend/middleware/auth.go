@@ -28,7 +28,10 @@ func Auth(auth *service.AuthService, users *repository.UserRepository) fiber.Han
 			return fiber.NewError(fiber.StatusUnauthorized, "user not found or inactive")
 		}
 
-		auth.TouchSession(c.Context(), claims.SessionID)
+		active, err := auth.TouchSession(c.Context(), claims.SessionID)
+		if err != nil || !active {
+			return fiber.NewError(fiber.StatusUnauthorized, "session is revoked or expired")
+		}
 
 		c.Locals("userId", claims.UserID)
 		c.Locals("sessionId", claims.SessionID)

@@ -77,14 +77,17 @@ func (r *SessionRepository) RevokeWithTimestamp(ctx context.Context, sessionID i
 	return err
 }
 
-func (r *SessionRepository) TouchActivity(ctx context.Context, sessionID int64) error {
-	_, err := r.db.NewUpdate().
+func (r *SessionRepository) TouchActivity(ctx context.Context, sessionID int64) (int64, error) {
+	res, err := r.db.NewUpdate().
 		Model((*models.Session)(nil)).
 		Set("last_activity_at = ?", time.Now()).
 		Where("id = ?", sessionID).
 		Where("revoked = ?", false).
 		Exec(ctx)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 func (r *SessionRepository) CountByUserID(ctx context.Context, userID int64) (int, error) {

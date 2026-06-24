@@ -19,3 +19,6 @@ backend/api.exe
 
 # Backups do banco de dados
 infra/backups/
+
+# Certificados e configurações do Certbot / Let's Encrypt
+infra/certbot/

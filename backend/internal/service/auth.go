@@ -335,11 +335,14 @@ func (s *AuthService) ValidateAccessToken(tokenString string) (TokenClaims, erro
 	return TokenClaims{UserID: int64(sub), SessionID: int64(sid)}, nil
 }
 
-// TouchSession atualiza last_activity_at da sessão (chamado pelo middleware Auth).
-func (s *AuthService) TouchSession(ctx context.Context, sessionID int64) {
-	if err := s.sessions.TouchActivity(ctx, sessionID); err != nil {
+// TouchSession atualiza last_activity_at da sessão. Retorna se a sessão continua ativa.
+func (s *AuthService) TouchSession(ctx context.Context, sessionID int64) (bool, error) {
+	rows, err := s.sessions.TouchActivity(ctx, sessionID)
+	if err != nil {
 		slog.Warn("failed to touch session activity", "sessionId", sessionID, "error", err)
+		return false, err
 	}
+	return rows > 0, nil
 }
 
 func (s *AuthService) createSession(ctx context.Context, user *models.User, ip, userAgent string) (*TokenPair, error) {
