@@ -50,14 +50,6 @@ func validateEmail(email string) error {
 	return nil
 }
 
-func validatePassword(password string) error {
-	// Fallback/Legacy validation used internally if needed, but we prefer validatePasswordSecure
-	if len(password) < 12 {
-		return ErrPasswordTooShort
-	}
-	return nil
-}
-
 func validatePasswordSecure(password string, name string, email string) error {
 	runes := []rune(password)
 	if len(runes) < 12 {

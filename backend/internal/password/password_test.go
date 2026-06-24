@@ -59,6 +59,6 @@ func TestVerifyUnknownFormat(t *testing.T) {
 	}
 }
 
-func TestDummyVerifyDoesNotPanic(t *testing.T) {
+func TestDummyVerifyDoesNotPanic(_ *testing.T) {
 	DummyVerify("any-password")
 }

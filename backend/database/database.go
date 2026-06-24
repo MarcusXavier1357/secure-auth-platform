@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	// Import drivers so golang-migrate can run postgres and file migrations
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/uptrace/bun"

@@ -26,13 +26,13 @@ func NewTieredRateLimiter(client *Client, tiers []RateTier, counterTTL time.Dura
 
 // MaxTierThreshold retorna o maior limiar configurado.
 func (r *TieredRateLimiter) MaxTierThreshold() int64 {
-	var max int64
+	var maxThreshold int64
 	for _, tier := range r.tiers {
-		if tier.Threshold > max {
-			max = tier.Threshold
+		if tier.Threshold > maxThreshold {
+			maxThreshold = tier.Threshold
 		}
 	}
-	return max
+	return maxThreshold
 }
 
 // Check incrementa o contador e retorna se a chave está bloqueada.
