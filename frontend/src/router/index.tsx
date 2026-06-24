@@ -9,6 +9,8 @@ import { paths } from "./paths";
 import LoginPage from "../app/(public)/login/page";
 import DashboardPage from "../app/(protected)/page";
 
+const SessionsPage = lazy(() => import("../app/(protected)/sessions/page"));
+
 const adminPages: Record<AdminRouteId, ReturnType<typeof lazy>> = {
   users: lazy(() => import("../app/(protected)/users/page")),
   permissions: lazy(() => import("../app/(protected)/permissions/page")),
@@ -37,6 +39,7 @@ export function AppRouter() {
 
         <Route element={<ProtectedLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path={paths.sessions()} element={<SessionsPage />} />
 
           {adminRoutes.map((route) => {
             const Page = adminPages[route.id];

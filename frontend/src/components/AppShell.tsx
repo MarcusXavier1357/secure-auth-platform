@@ -7,6 +7,7 @@ import { adminRoutes } from "../router/admin-routes";
 
 const navItems = [
   { to: paths.home(), label: "Início", permission: null as string | null },
+  { to: paths.sessions(), label: "Sessões Ativas", permission: null as string | null },
   ...adminRoutes.map((route) => ({
     to: route.path,
     label: route.navLabel,

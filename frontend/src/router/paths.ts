@@ -7,4 +7,5 @@ export const paths = {
   users: () => "/users",
   permissions: () => "/permissions",
   audit: () => "/audit",
+  sessions: () => "/sessions",
 } as const;

@@ -147,7 +147,32 @@ export const api = {
     list: (limit = 50, offset = 0) =>
       request<AuditLog[]>(`/audit-logs?limit=${limit}&offset=${offset}`),
   },
+
+  sessions: {
+    list: () => request<ActiveSession[]>("/auth/sessions"),
+    revoke: (id: number) =>
+      request<void>(`/auth/sessions/${id}`, {
+        method: "DELETE",
+      }),
+    revokeAll: () =>
+      request<void>("/auth/sessions", {
+        method: "DELETE",
+      }),
+  },
 };
+
+export interface ActiveSession {
+  id: number;
+  userId: number;
+  expiresAt: string;
+  revoked: boolean;
+  revokedAt?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  lastActivityAt?: string;
+  createdAt: string;
+  isCurrent: boolean;
+}
 
 export interface Role {
   id: number;
