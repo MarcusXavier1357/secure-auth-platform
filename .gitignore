@@ -17,3 +17,5 @@ backend/api.exe
 # arquivos de IA
 .agents
 
+# Backups do banco de dados
+infra/backups/
