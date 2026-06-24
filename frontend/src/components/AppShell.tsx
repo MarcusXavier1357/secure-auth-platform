@@ -61,9 +61,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-app-bg text-app-text font-sans">
       {/* Fixed/Collapsible Sidebar */}
-      <aside className={`flex flex-col border-app-border bg-app-card backdrop-blur-xl h-screen justify-between transition-all duration-300 ease-in-out ${
-        isCollapsed ? "w-0 overflow-hidden border-r-0" : "w-64 border-r shrink-0"
-      }`}>
+      <aside
+        className={`flex flex-col border-app-border bg-app-card backdrop-blur-xl h-screen justify-between transition-all duration-300 ease-in-out ${
+          isCollapsed ? "w-0 overflow-hidden border-r-0" : "w-64 border-r shrink-0"
+        }`}
+      >
         <div>
           <div className="border-b border-app-border px-6 py-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -74,13 +76,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Auth System
               </Link>
             </div>
-            
+
             <button
               onClick={() => setIsCollapsed(true)}
               className="p-1.5 rounded-lg hover:bg-app-card-hover text-app-muted hover:text-app-text transition cursor-pointer"
               title="Recolher Sidebar"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M9 3v18" />
               </svg>
@@ -107,7 +119,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <p className="truncate text-sm font-semibold text-app-text">{user?.name}</p>
               <p className="truncate text-xs text-app-muted">{user?.email}</p>
             </div>
-            
+
             {user?.role && (
               <div>
                 <span className="inline-flex rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-400">
@@ -123,7 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 Sair da conta
               </button>
-              
+
               {/* Theme Toggle inside user box */}
               <button
                 onClick={toggleTheme}
@@ -145,15 +157,23 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="fixed top-6 left-3 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-app-border bg-app-card backdrop-blur-md text-app-text shadow-lg hover:bg-app-card-hover transition-all duration-200 active:scale-95 cursor-pointer"
             title="Expandir Sidebar"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect width="18" height="18" x="3" y="3" rx="2" />
               <path d="M9 3v18" />
             </svg>
           </button>
         )}
-        <div className="max-w-7xl mx-auto space-y-8">
-          {children}
-        </div>
+        <div className="max-w-7xl mx-auto space-y-8">{children}</div>
       </main>
     </div>
   );

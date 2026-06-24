@@ -118,13 +118,17 @@ export default function PermissionsPage() {
     <div className="space-y-10 animate-fade-in font-sans">
       <div>
         <h2 className="text-2xl font-extrabold tracking-tight text-app-text">Permissões</h2>
-        <p className="text-sm text-app-muted">Gerencie regras de autorização granulares e atribuições de acessos aos usuários.</p>
+        <p className="text-sm text-app-muted">
+          Gerencie regras de autorização granulares e atribuições de acessos aos usuários.
+        </p>
       </div>
 
       {/* Catalog section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-app-muted">Catálogo de Permissões</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-app-muted">
+            Catálogo de Permissões
+          </h3>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -166,7 +170,9 @@ export default function PermissionsPage() {
                       {permission.code}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-app-text">{permission.description || <span className="text-app-muted">—</span>}</td>
+                  <td className="px-6 py-4 text-app-text">
+                    {permission.description || <span className="text-app-muted">—</span>}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       <Can permission="permissions.update">
@@ -205,10 +211,15 @@ export default function PermissionsPage() {
 
       {/* User permissions section */}
       <section ref={userSectionRef} className="space-y-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-app-muted">Permissões por Usuário</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-app-muted">
+          Permissões por Usuário
+        </h3>
 
         <div className="rounded-3xl border border-app-border bg-app-card backdrop-blur-md p-6 max-w-xl">
-          <label htmlFor="user" className="block text-xs font-semibold uppercase tracking-wider text-app-muted mb-2">
+          <label
+            htmlFor="user"
+            className="block text-xs font-semibold uppercase tracking-wider text-app-muted mb-2"
+          >
             Selecionar Usuário
           </label>
           <select
@@ -217,7 +228,9 @@ export default function PermissionsPage() {
             onChange={(e) => setSelectedUserId(e.target.value ? Number(e.target.value) : null)}
             className="w-full rounded-xl border border-app-border bg-app-input px-4 py-3 text-sm text-app-text outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           >
-            <option value="" className="bg-app-bg text-app-text">Selecione um colaborador...</option>
+            <option value="" className="bg-app-bg text-app-text">
+              Selecione um colaborador...
+            </option>
             {users?.map((user) => (
               <option key={user.id} value={user.id} className="bg-app-bg text-app-text">
                 {user.name} ({user.email})
@@ -240,16 +253,16 @@ export default function PermissionsPage() {
                     className="flex items-center justify-between rounded-2xl border border-app-border bg-app-bg/40 p-4 transition-all hover:border-app-border"
                   >
                     <div className="space-y-1">
-                      <span className="font-mono text-xs text-app-text font-semibold">{permission.code}</span>
+                      <span className="font-mono text-xs text-app-text font-semibold">
+                        {permission.code}
+                      </span>
                       <p className="text-xs text-app-muted">{permission.description}</p>
                     </div>
                     {granted ? (
                       <Can permission="permissions.revoke">
                         <button
                           disabled={pending}
-                          onClick={() =>
-                            setRevokeTarget({ userId: selectedUser.id, permission })
-                          }
+                          onClick={() => setRevokeTarget({ userId: selectedUser.id, permission })}
                           className="rounded-xl border border-red-500/40 px-3.5 py-2 text-xs font-bold text-red-550 dark:text-red-400 hover:bg-red-500/10 transition active:scale-95 disabled:opacity-50"
                         >
                           Revogar
@@ -358,11 +371,11 @@ function CatalogModal({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in cursor-pointer"
       onClick={onClose}
     >
-      <div 
+      <div
         className="w-full max-w-md rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
@@ -370,31 +383,41 @@ function CatalogModal({
           <h3 className="text-lg font-bold text-app-text font-sans">
             {isCreate ? "Nova Permissão" : "Editar Permissão"}
           </h3>
-          <button type="button" onClick={onClose} className="text-app-muted hover:text-app-text transition-colors cursor-pointer">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-app-muted hover:text-app-text transition-colors cursor-pointer"
+          >
             ✕
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           {isCreate ? (
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-app-muted">Código identificador</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
+                Código identificador
+              </label>
               <input
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="ex.: logs.visualizar"
                 className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 font-mono text-sm text-app-text outline-none focus:border-indigo-500"
               />
-              <p className="text-[10px] text-app-muted/80">Padrão do sistema: recurso.acao (apenas letras minúsculas)</p>
+              <p className="text-[10px] text-app-muted/80">
+                Padrão do sistema: recurso.acao (apenas letras minúsculas)
+              </p>
             </div>
           ) : (
             <div className="rounded-xl bg-app-bg/40 p-4 border border-app-border">
               <p className="font-mono text-sm text-indigo-400 dark:text-indigo-300">{code}</p>
             </div>
           )}
-          
+
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-app-muted">Descrição detalhada</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
+              Descrição detalhada
+            </label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -402,13 +425,13 @@ function CatalogModal({
               className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text outline-none focus:border-indigo-500"
             />
           </div>
-          
+
           {(localError || error) && (
             <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-500 dark:text-red-400">
               {localError ?? error}
             </div>
           )}
-          
+
           <div className="flex justify-end gap-3 pt-4 border-t border-app-border/60">
             <button
               type="button"
@@ -445,11 +468,11 @@ function ConfirmDialog({
   onConfirm: () => void;
 }) {
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in cursor-pointer"
       onClick={onCancel}
     >
-      <div 
+      <div
         className="w-full max-w-md rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in cursor-default"
         onClick={(e) => e.stopPropagation()}
       >

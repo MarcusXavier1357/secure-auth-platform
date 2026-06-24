@@ -51,7 +51,9 @@ export default function UsersPage() {
       api.users.update(id, { active }),
     onSuccess: () => {
       invalidate();
-      toast.success(toggleTarget?.active ? "Usuário desativado com sucesso!" : "Usuário ativado com sucesso!");
+      toast.success(
+        toggleTarget?.active ? "Usuário desativado com sucesso!" : "Usuário ativado com sucesso!",
+      );
       setToggleTarget(null);
     },
     onError: (err) => {
@@ -86,7 +88,9 @@ export default function UsersPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold tracking-tight text-app-text">Usuários</h2>
-          <p className="text-sm text-app-muted">Gerencie contas, papéis e status de acesso dos colaboradores.</p>
+          <p className="text-sm text-app-muted">
+            Gerencie contas, papéis e status de acesso dos colaboradores.
+          </p>
         </div>
         <Can permission="users.create">
           <button
@@ -161,10 +165,11 @@ export default function UsersPage() {
                         type="button"
                         disabled={pending}
                         onClick={() => setToggleTarget(user)}
-                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${user.active
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                          user.active
                             ? "border-red-500/40 text-red-500 hover:bg-red-500/10"
                             : "border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10"
-                          }`}
+                        }`}
                       >
                         {user.active ? "Desativar" : "Ativar"}
                       </button>
@@ -216,11 +221,11 @@ export default function UsersPage() {
       )}
 
       {toggleTarget && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in cursor-pointer"
           onClick={() => setToggleTarget(null)}
         >
-          <div 
+          <div
             className="w-full max-w-md rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in cursor-default"
             onClick={(e) => e.stopPropagation()}
           >

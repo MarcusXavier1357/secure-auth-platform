@@ -24,15 +24,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback((message: string, type: ToastType = "info") => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+  const toast = useCallback(
+    (message: string, type: ToastType = "info") => {
+      const id = Math.random().toString(36).substring(2, 9);
+      setToasts((prev) => [...prev, { id, message, type }]);
 
-    // Auto-remove após 4 segundos
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  }, [removeToast]);
+      // Auto-remove após 4 segundos
+      setTimeout(() => {
+        removeToast(id);
+      }, 4000);
+    },
+    [removeToast],
+  );
 
   const success = useCallback((msg: string) => toast(msg, "success"), [toast]);
   const error = useCallback((msg: string) => toast(msg, "error"), [toast]);
@@ -41,7 +44,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast, success, error, info }}>
       {children}
-      
+
       {/* Toast Render Area */}
       <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
         {toasts.map((t) => (
@@ -51,8 +54,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               t.type === "success"
                 ? "bg-emerald-950/85 dark:bg-emerald-950/85 text-emerald-250 dark:text-emerald-300 border-emerald-500/30"
                 : t.type === "error"
-                ? "bg-red-950/85 dark:bg-red-950/85 text-red-250 dark:text-red-300 border-red-500/30"
-                : "bg-app-card/90 text-app-text border-app-border"
+                  ? "bg-red-950/85 dark:bg-red-950/85 text-red-250 dark:text-red-300 border-red-500/30"
+                  : "bg-app-card/90 text-app-text border-app-border"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -73,7 +76,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               )}
               <p className="text-sm font-semibold leading-snug">{t.message}</p>
             </div>
-            
+
             <button
               onClick={() => removeToast(t.id)}
               className="text-current opacity-60 hover:opacity-100 transition-opacity p-1 text-xs shrink-0 cursor-pointer"

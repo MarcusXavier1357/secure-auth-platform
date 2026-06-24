@@ -57,7 +57,10 @@ export default function LoginPage() {
         className="space-y-5 rounded-3xl border border-slate-800 bg-slate-900/40 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl"
       >
         <div className="space-y-1.5">
-          <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <label
+            htmlFor="email"
+            className="block text-xs font-semibold uppercase tracking-wider text-slate-400"
+          >
             E-mail
           </label>
           <input
@@ -73,7 +76,10 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <label
+            htmlFor="password"
+            className="block text-xs font-semibold uppercase tracking-wider text-slate-400"
+          >
             Senha
           </label>
           <input

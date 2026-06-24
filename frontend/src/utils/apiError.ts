@@ -20,7 +20,8 @@ export function parseApiErrorMessage(error: unknown, fallback: string): string {
       "invalid permission code": "Código de permissão inválido.",
       "protected permission": "Esta permissão é protegida e não pode ser removida.",
       "permission in use": "Remova a permissão de todos os usuários antes de excluí-la.",
-      "cannot grant permission you do not have": "Você não pode conceder uma permissão que não possui.",
+      "cannot grant permission you do not have":
+        "Você não pode conceder uma permissão que não possui.",
       "missing permission for this update": "Você não tem permissão para esta alteração.",
     };
     for (const [key, pt] of Object.entries(map)) {

@@ -69,14 +69,20 @@ describe("UserFormModal", () => {
 
   it("shows error if password is less than 12 characters", async () => {
     render(<UserFormModal {...defaultProps} />);
-    
+
     // Preencher campos obrigatórios
-    fireEvent.change(screen.getByPlaceholderText("Nome do usuário"), { target: { value: "Fulano de Tal" } });
-    fireEvent.change(screen.getByPlaceholderText("exemplo@empresa.com"), { target: { value: "fulano@empresa.com" } });
-    
+    fireEvent.change(screen.getByPlaceholderText("Nome do usuário"), {
+      target: { value: "Fulano de Tal" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("exemplo@empresa.com"), {
+      target: { value: "fulano@empresa.com" },
+    });
+
     // Senha muito curta
-    fireEvent.change(screen.getByPlaceholderText("Senha (mínimo de 12 caracteres)"), { target: { value: "Senha123" } });
-    
+    fireEvent.change(screen.getByPlaceholderText("Senha (mínimo de 12 caracteres)"), {
+      target: { value: "Senha123" },
+    });
+
     // Submeter
     fireEvent.submit(screen.getByRole("button", { name: "Criar usuário" }));
 
@@ -86,56 +92,74 @@ describe("UserFormModal", () => {
 
   it("shows error if password has no upper, lower, or digit", () => {
     render(<UserFormModal {...defaultProps} />);
-    
-    fireEvent.change(screen.getByPlaceholderText("Nome do usuário"), { target: { value: "Fulano de Tal" } });
-    fireEvent.change(screen.getByPlaceholderText("exemplo@empresa.com"), { target: { value: "fulano@empresa.com" } });
-    
+
+    fireEvent.change(screen.getByPlaceholderText("Nome do usuário"), {
+      target: { value: "Fulano de Tal" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("exemplo@empresa.com"), {
+      target: { value: "fulano@empresa.com" },
+    });
+
     // Senha sem números/maiúsculas
-    fireEvent.change(screen.getByPlaceholderText("Senha (mínimo de 12 caracteres)"), { target: { value: "semmaiusculasegura" } });
-    
+    fireEvent.change(screen.getByPlaceholderText("Senha (mínimo de 12 caracteres)"), {
+      target: { value: "semmaiusculasegura" },
+    });
+
     fireEvent.submit(screen.getByRole("button", { name: "Criar usuário" }));
 
-    expect(screen.getByText("A senha deve conter ao menos uma letra maiúscula, uma minúscula e um número.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "A senha deve conter ao menos uma letra maiúscula, uma minúscula e um número.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("calls onClose when clicking outside (on the backdrop)", () => {
     const onCloseMock = vi.fn();
     render(<UserFormModal {...defaultProps} onClose={onCloseMock} />);
-    
+
     // O backdrop é o elemento mais externo (com classe fixed inset-0)
     const backdrop = screen.getByText("Criar Novo Usuário").closest(".fixed");
     expect(backdrop).toBeInTheDocument();
-    
+
     if (backdrop) {
       fireEvent.click(backdrop);
     }
-    
+
     expect(onCloseMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not call onClose when clicking inside the modal container", () => {
     const onCloseMock = vi.fn();
     render(<UserFormModal {...defaultProps} onClose={onCloseMock} />);
-    
+
     // Clicar no formulário ou no título não deve fechar
     const title = screen.getByText("Criar Novo Usuário");
     fireEvent.click(title);
-    
+
     expect(onCloseMock).not.toHaveBeenCalled();
   });
 
   it("calls onSubmit with correct data when validations pass", () => {
     const onSubmitMock = vi.fn();
     render(<UserFormModal {...defaultProps} onSubmit={onSubmitMock} />);
-    
-    fireEvent.change(screen.getByPlaceholderText("Nome do usuário"), { target: { value: "Fulano de Tal" } });
-    fireEvent.change(screen.getByPlaceholderText("exemplo@empresa.com"), { target: { value: "fulano@empresa.com" } });
-    
+
+    fireEvent.change(screen.getByPlaceholderText("Nome do usuário"), {
+      target: { value: "Fulano de Tal" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("exemplo@empresa.com"), {
+      target: { value: "fulano@empresa.com" },
+    });
+
     // Senha forte que cumpre os critérios (Score 4)
     // Comprimento >= 12, maiúscula, minúscula, número, sem sequências repetitivas simples
-    fireEvent.change(screen.getByPlaceholderText("Senha (mínimo de 12 caracteres)"), { target: { value: "A1b9C2d8E3f7" } });
-    fireEvent.change(screen.getByPlaceholderText("Confirmar nova senha"), { target: { value: "A1b9C2d8E3f7" } });
-    
+    fireEvent.change(screen.getByPlaceholderText("Senha (mínimo de 12 caracteres)"), {
+      target: { value: "A1b9C2d8E3f7" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Confirmar nova senha"), {
+      target: { value: "A1b9C2d8E3f7" },
+    });
+
     fireEvent.submit(screen.getByRole("button", { name: "Criar usuário" }));
 
     expect(onSubmitMock).toHaveBeenCalledWith({

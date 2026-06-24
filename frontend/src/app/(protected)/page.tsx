@@ -18,9 +18,7 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-extrabold tracking-tight text-app-text sm:text-3xl">
             Bem-vindo, {user?.name}
           </h2>
-          <p className="text-sm text-app-muted max-w-xl leading-relaxed">
-            Sessão ativa.
-          </p>
+          <p className="text-sm text-app-muted max-w-xl leading-relaxed">Sessão ativa.</p>
         </div>
       </section>
 
@@ -28,15 +26,21 @@ export default function DashboardPage() {
       <section className="rounded-3xl border border-app-border bg-app-card/60 p-8 backdrop-blur-md space-y-4">
         <div className="flex items-center gap-2.5">
           <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-app-text/90">Suas permissões ativas</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-app-text/90">
+            Suas permissões ativas
+          </h2>
         </div>
 
         {permissions.length === 0 ? (
-          <p className="text-sm text-app-muted">Nenhuma permissão especial atribuída ao seu perfil.</p>
+          <p className="text-sm text-app-muted">
+            Nenhuma permissão especial atribuída ao seu perfil.
+          </p>
         ) : (
           <ul className="flex flex-wrap gap-2.5">
             {permissions.map((code) => {
-              const permObj = user?.permissions?.find((p: { code: string; description: string }) => p.code === code);
+              const permObj = user?.permissions?.find(
+                (p: { code: string; description: string }) => p.code === code,
+              );
               const displayLabel = permObj?.description || code;
               return (
                 <li

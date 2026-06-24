@@ -167,10 +167,12 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
       const hasUpper = /[A-Z]/.test(password);
       const hasDigit = /[0-9]/.test(password);
       if (!hasLower || !hasUpper || !hasDigit) {
-        setLocalError("A senha deve conter ao menos uma letra maiúscula, uma minúscula e um número.");
+        setLocalError(
+          "A senha deve conter ao menos uma letra maiúscula, uma minúscula e um número.",
+        );
         return;
       }
-      
+
       const strength = checkPasswordStrength(password, name, email);
       if (strength.score < 4) {
         setLocalError("A senha é considerada fraca. Escolha uma senha mais forte.");
@@ -206,11 +208,11 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
   const showFields = !isEdit || canUpdate;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in cursor-pointer"
       onClick={onClose}
     >
-      <div 
+      <div
         className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
@@ -231,7 +233,10 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
           {showFields ? (
             <>
               <div className="space-y-1.5">
-                <label htmlFor="user-name" className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
+                <label
+                  htmlFor="user-name"
+                  className="block text-xs font-semibold uppercase tracking-wider text-app-muted"
+                >
                   Nome Completo
                 </label>
                 <input
@@ -243,7 +248,10 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="user-email" className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
+                <label
+                  htmlFor="user-email"
+                  className="block text-xs font-semibold uppercase tracking-wider text-app-muted"
+                >
                   Endereço de E-mail
                 </label>
                 <input
@@ -256,7 +264,10 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="user-role" className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
+                <label
+                  htmlFor="user-role"
+                  className="block text-xs font-semibold uppercase tracking-wider text-app-muted"
+                >
                   Perfil de Acesso (Role)
                 </label>
                 <select
@@ -265,7 +276,9 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
                   onChange={(e) => setRoleId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 >
-                  <option value="" className="bg-app-bg text-app-text">Nenhum</option>
+                  <option value="" className="bg-app-bg text-app-text">
+                    Nenhum
+                  </option>
                   {roles?.map((role) => (
                     <option key={role.id} value={role.id} className="bg-app-bg text-app-text">
                       {role.name}
@@ -276,83 +289,116 @@ export function UserFormModal({ user, pending, error, onClose, onSubmit }: UserF
             </>
           ) : null}
 
-          {(!isEdit || canResetPassword) && (() => {
-            const strength = checkPasswordStrength(password, name, email);
-            return (
-              <div className="space-y-4 rounded-2xl border border-app-border bg-app-bg/40 p-5">
-                <p className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
-                  {isEdit ? "Redefinir senha (opcional)" : "Definir senha de acesso"}
-                </p>
-                <div className="space-y-3">
-                  <input
-                    type="password"
-                    placeholder={isEdit ? "Nova senha" : "Senha (mínimo de 12 caracteres)"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text placeholder-app-muted/50 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Confirmar nova senha"
-                    value={passwordConfirm}
-                    onChange={(e) => setPasswordConfirm(e.target.value)}
-                    className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text placeholder-app-muted/50 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                </div>
-
-                {password && (
-                  <div className="space-y-3 mt-3 pt-3 border-t border-app-border/60">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-app-muted font-medium">Complexidade da senha:</span>
-                      <span className={
-                        strength.score <= 1 ? "text-red-450 font-bold" :
-                        strength.score <= 3 ? "text-yellow-500 dark:text-yellow-400 font-bold" :
-                        "text-emerald-500 dark:text-emerald-400 font-bold"
-                      }>
-                        {strength.score <= 1 ? "Fraca" : strength.score <= 3 ? "Média" : "Forte"}
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-app-bg overflow-hidden border border-app-border/20">
-                      <div
-                        className={`h-full transition-all duration-300 ${
-                          strength.score <= 1 ? "bg-red-500 w-1/3" :
-                          strength.score <= 3 ? "bg-yellow-500 w-2/3" :
-                          "bg-emerald-500 w-full"
-                        }`}
-                      />
-                    </div>
-
-                    <ul className="text-[11px] space-y-1.5 text-app-muted mt-2">
-                      <li className="flex items-center gap-2">
-                        <span className={strength.hasLength ? "text-emerald-500 dark:text-emerald-400 font-bold" : "text-app-muted/40"}>
-                          {strength.hasLength ? "●" : "○"}
-                        </span>
-                        <span className={strength.hasLength ? "text-app-text" : ""}>
-                          Mínimo de 12 caracteres
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className={(strength.hasLower && strength.hasUpper && strength.hasDigit) ? "text-emerald-500 dark:text-emerald-400 font-bold" : "text-app-muted/40"}>
-                          {(strength.hasLower && strength.hasUpper && strength.hasDigit) ? "●" : "○"}
-                        </span>
-                        <span className={(strength.hasLower && strength.hasUpper && strength.hasDigit) ? "text-app-text" : ""}>
-                          Letra maiúscula, minúscula e número
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className={strength.noSequenceOrRepetition ? "text-emerald-500 dark:text-emerald-400 font-bold" : "text-app-muted/40"}>
-                          {strength.noSequenceOrRepetition ? "●" : "○"}
-                        </span>
-                        <span className={strength.noSequenceOrRepetition ? "text-app-text" : ""}>
-                          Sem padrões previsíveis, sequências ou dados pessoais
-                        </span>
-                      </li>
-                    </ul>
+          {(!isEdit || canResetPassword) &&
+            (() => {
+              const strength = checkPasswordStrength(password, name, email);
+              return (
+                <div className="space-y-4 rounded-2xl border border-app-border bg-app-bg/40 p-5">
+                  <p className="block text-xs font-semibold uppercase tracking-wider text-app-muted">
+                    {isEdit ? "Redefinir senha (opcional)" : "Definir senha de acesso"}
+                  </p>
+                  <div className="space-y-3">
+                    <input
+                      type="password"
+                      placeholder={isEdit ? "Nova senha" : "Senha (mínimo de 12 caracteres)"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text placeholder-app-muted/50 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Confirmar nova senha"
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      className="w-full rounded-xl border border-app-border bg-app-input px-4 py-2.5 text-sm text-app-text placeholder-app-muted/50 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    />
                   </div>
-                )}
-              </div>
-            );
-          })()}
+
+                  {password && (
+                    <div className="space-y-3 mt-3 pt-3 border-t border-app-border/60">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-app-muted font-medium">Complexidade da senha:</span>
+                        <span
+                          className={
+                            strength.score <= 1
+                              ? "text-red-450 font-bold"
+                              : strength.score <= 3
+                                ? "text-yellow-500 dark:text-yellow-400 font-bold"
+                                : "text-emerald-500 dark:text-emerald-400 font-bold"
+                          }
+                        >
+                          {strength.score <= 1 ? "Fraca" : strength.score <= 3 ? "Média" : "Forte"}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-app-bg overflow-hidden border border-app-border/20">
+                        <div
+                          className={`h-full transition-all duration-300 ${
+                            strength.score <= 1
+                              ? "bg-red-500 w-1/3"
+                              : strength.score <= 3
+                                ? "bg-yellow-500 w-2/3"
+                                : "bg-emerald-500 w-full"
+                          }`}
+                        />
+                      </div>
+
+                      <ul className="text-[11px] space-y-1.5 text-app-muted mt-2">
+                        <li className="flex items-center gap-2">
+                          <span
+                            className={
+                              strength.hasLength
+                                ? "text-emerald-500 dark:text-emerald-400 font-bold"
+                                : "text-app-muted/40"
+                            }
+                          >
+                            {strength.hasLength ? "●" : "○"}
+                          </span>
+                          <span className={strength.hasLength ? "text-app-text" : ""}>
+                            Mínimo de 12 caracteres
+                          </span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span
+                            className={
+                              strength.hasLower && strength.hasUpper && strength.hasDigit
+                                ? "text-emerald-500 dark:text-emerald-400 font-bold"
+                                : "text-app-muted/40"
+                            }
+                          >
+                            {strength.hasLower && strength.hasUpper && strength.hasDigit
+                              ? "●"
+                              : "○"}
+                          </span>
+                          <span
+                            className={
+                              strength.hasLower && strength.hasUpper && strength.hasDigit
+                                ? "text-app-text"
+                                : ""
+                            }
+                          >
+                            Letra maiúscula, minúscula e número
+                          </span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span
+                            className={
+                              strength.noSequenceOrRepetition
+                                ? "text-emerald-500 dark:text-emerald-400 font-bold"
+                                : "text-app-muted/40"
+                            }
+                          >
+                            {strength.noSequenceOrRepetition ? "●" : "○"}
+                          </span>
+                          <span className={strength.noSequenceOrRepetition ? "text-app-text" : ""}>
+                            Sem padrões previsíveis, sequências ou dados pessoais
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           {(localError || error) && (
             <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-500 dark:text-red-400">

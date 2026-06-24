@@ -27,7 +27,9 @@ export default function AuditPage() {
     <div className="space-y-8 animate-fade-in font-sans">
       <div>
         <h2 className="text-2xl font-extrabold tracking-tight text-app-text">Auditoria</h2>
-        <p className="text-sm text-app-muted">Rastreabilidade completa de todas as alterações críticas realizadas no sistema.</p>
+        <p className="text-sm text-app-muted">
+          Rastreabilidade completa de todas as alterações críticas realizadas no sistema.
+        </p>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-app-border bg-app-card backdrop-blur-md shadow-xl">
@@ -45,9 +47,19 @@ export default function AuditPage() {
             {logs?.map((log) => {
               // Color helper for action tags
               let actionColor = "bg-app-bg text-app-text border border-app-border";
-              if (log.action.includes("login")) actionColor = "bg-indigo-500/10 border border-indigo-500/20 text-indigo-650 dark:text-indigo-300";
-              else if (log.action.includes("create") || log.action.includes("grant")) actionColor = "bg-emerald-500/10 border border-emerald-500/20 text-emerald-650 dark:text-emerald-400";
-              else if (log.action.includes("delete") || log.action.includes("revoke") || log.action.includes("deactivate")) actionColor = "bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400";
+              if (log.action.includes("login"))
+                actionColor =
+                  "bg-indigo-500/10 border border-indigo-500/20 text-indigo-650 dark:text-indigo-300";
+              else if (log.action.includes("create") || log.action.includes("grant"))
+                actionColor =
+                  "bg-emerald-500/10 border border-emerald-500/20 text-emerald-650 dark:text-emerald-400";
+              else if (
+                log.action.includes("delete") ||
+                log.action.includes("revoke") ||
+                log.action.includes("deactivate")
+              )
+                actionColor =
+                  "bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400";
 
               return (
                 <tr key={log.id} className="transition-colors hover:bg-app-card-hover/40">
@@ -55,17 +67,23 @@ export default function AuditPage() {
                     {new Date(log.createdAt).toLocaleString("pt-BR")}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex rounded-lg px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider ${actionColor}`}>
+                    <span
+                      className={`inline-flex rounded-lg px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider ${actionColor}`}
+                    >
                       {log.action}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-app-text">
                     <span className="font-semibold text-app-text">{log.entity}</span>
                     {log.entityId != null && (
-                      <span className="ml-1.5 text-xs text-app-muted font-mono">#{log.entityId}</span>
+                      <span className="ml-1.5 text-xs text-app-muted font-mono">
+                        #{log.entityId}
+                      </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-app-muted font-mono text-xs">{log.userId ?? "—"}</td>
+                  <td className="px-6 py-4 text-app-muted font-mono text-xs">
+                    {log.userId ?? "—"}
+                  </td>
                   <td className="max-w-md truncate px-6 py-4 font-mono text-xs text-app-muted hover:text-app-text transition-colors">
                     {log.newData ? JSON.stringify(log.newData) : "—"}
                   </td>

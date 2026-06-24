@@ -22,9 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const me = await api.me();
     setUser(me.user);
     const codes =
-      me.permissions.length > 0
-        ? me.permissions
-        : (me.user.permissions?.map((p) => p.code) ?? []);
+      me.permissions.length > 0 ? me.permissions : (me.user.permissions?.map((p) => p.code) ?? []);
     setPermissions(codes);
   }, []);
 

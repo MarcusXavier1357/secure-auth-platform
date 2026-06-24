@@ -32,12 +32,18 @@ function parseUserAgent(uaString?: string) {
 // Retorna emoji representativo para o SO
 function getOSEmoji(os: string) {
   switch (os) {
-    case "Windows": return "💻";
-    case "macOS": return "🍎";
-    case "Linux": return "🐧";
-    case "Android": return "🤖";
-    case "iOS": return "📱";
-    default: return "🖥️";
+    case "Windows":
+      return "💻";
+    case "macOS":
+      return "🍎";
+    case "Linux":
+      return "🐧";
+    case "Android":
+      return "🤖";
+    case "iOS":
+      return "📱";
+    default:
+      return "🖥️";
   }
 }
 
