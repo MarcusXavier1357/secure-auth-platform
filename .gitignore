@@ -13,3 +13,7 @@ backend/api.exe
 **/keys/private.pem
 **/keys/*.pem
 !**/keys/.gitkeep
+
+# arquivos de IA
+.agents
+

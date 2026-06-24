@@ -147,12 +147,16 @@ As páginas `/users`, `/permissions` e `/audit` usam TanStack Query (`useQuery`/
 - **`/users`**: tabela com nome, email, role, contagem de permissões e status (`api.users.list()`). Permite a criação e edição de usuários via modal interativo, com validação de senha integrada.
 - **`/audit`**: tabela paginada (`limit`/`offset`) via `api.audit.list()`
 
-## Política de Senhas Visual (Tempo Real)
+## Sistema de Design (Glassmorphism & Sidebar Colapsável)
 
-No modal de criação/edição de usuários, foi integrada uma validação de senha síncrona visual:
-- **Barra de Força**: Classifica dinamicamente a senha como *Fraca*, *Média* ou *Forte* usando cores.
-- **Checklist Dinâmico**: Mostra ao usuário o estado dos critérios obrigatórios (comprimento $\ge 12$, maiúsculas/minúsculas/números, ausência de sequências e dados pessoais).
-- **Bloqueio de Submissão**: O botão de envio fica desativado enquanto a senha não preencher todos os requisitos de segurança locais.
+O frontend foi redesenhado com uma identidade moderna e fluida:
+- **Tema Visual**: Estética glassmorphism com fundos translúcidos (`backdrop-blur-md`), bordas semitransparentes e gradientes suaves.
+- **Modos Claro e Escuro**: Gerenciado via classe `.light` no elemento raiz (`<html>`) com alternância manual no painel de usuário da sidebar.
+- **Contraste de Permissões**: A classe `.code-pill` garante visualização clara em ambos os modos (incluindo cores escuras/pretas no modo claro).
+- **Sidebar Colapsável**:
+  - Controlada por estado reativo (`isCollapsed`) no `AppShell.tsx`.
+  - Botão interno para recolher (ícone de painel) encolhe a sidebar para `w-0` (com transição CSS suave).
+  - Botão flutuante redondo suspenso à esquerda (`fixed left-3`) reabre a sidebar.
 
 ## Limitações atuais (conscientes)
 

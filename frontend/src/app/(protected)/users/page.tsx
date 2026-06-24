@@ -76,61 +76,77 @@ export default function UsersPage() {
   if (isError) {
     return <p className="text-sm text-red-400">Erro ao carregar usuários.</p>;
   }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in font-sans">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold">Usuários</h2>
+        <div>
+          <h2 className="text-2xl font-extrabold tracking-tight text-app-text">Usuários</h2>
+          <p className="text-sm text-app-muted">Gerencie contas, papéis e status de acesso dos colaboradores.</p>
+        </div>
         <Can permission="users.create">
           <button
             type="button"
             onClick={openCreate}
             disabled={pending}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-indigo-500 active:scale-95 disabled:opacity-50"
           >
             Novo usuário
           </button>
         </Can>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-900 text-slate-400">
-            <tr>
-              <th className="px-4 py-3 font-medium">Nome</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Role</th>
-              <th className="px-4 py-3 font-medium">Permissões</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Ações</th>
+      <div className="overflow-hidden rounded-2xl border border-app-border bg-app-card backdrop-blur-md shadow-xl">
+        <table className="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-app-border bg-app-bg/40 text-app-muted">
+              <th className="px-6 py-4 font-semibold">Nome</th>
+              <th className="px-6 py-4 font-semibold">E-mail</th>
+              <th className="px-6 py-4 font-semibold">Perfil (Role)</th>
+              <th className="px-6 py-4 font-semibold text-center">Permissões</th>
+              <th className="px-6 py-4 font-semibold">Status</th>
+              <th className="px-6 py-4 font-semibold text-right">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800 bg-slate-900/50">
+          <tbody className="divide-y divide-app-border/60">
             {users?.map((user) => (
-              <tr key={user.id}>
-                <td className="px-4 py-3">{user.name}</td>
-                <td className="px-4 py-3 text-slate-400">{user.email}</td>
-                <td className="px-4 py-3 text-slate-400">{user.role?.name ?? "—"}</td>
-                <td className="px-4 py-3 text-slate-400">{user.permissions?.length ?? 0}</td>
-                <td className="px-4 py-3">
+              <tr key={user.id} className="transition-colors hover:bg-app-card-hover/40">
+                <td className="px-6 py-4 font-semibold text-app-text">{user.name}</td>
+                <td className="px-6 py-4 text-app-muted">{user.email}</td>
+                <td className="px-6 py-4">
+                  {user.role ? (
+                    <span className="inline-flex rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-xs text-indigo-550 dark:text-indigo-300 font-medium">
+                      {user.role.name}
+                    </span>
+                  ) : (
+                    <span className="text-app-muted">—</span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className="inline-flex items-center justify-center rounded-lg bg-app-bg border border-app-border px-2 py-0.5 font-mono text-xs text-app-text">
+                    {user.permissions?.length ?? 0}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
                   {user.active ? (
-                    <span className="rounded-full bg-emerald-950 px-2 py-0.5 text-xs text-emerald-400">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                       Ativo
                     </span>
                   ) : (
-                    <span className="rounded-full bg-red-950 px-2 py-0.5 text-xs text-red-400">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-app-bg border border-app-border px-2.5 py-0.5 text-xs font-medium text-app-muted">
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
                       Inativo
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2">
                     <Can permission="users.update">
                       <button
                         type="button"
                         disabled={pending}
                         onClick={() => openEdit(user)}
-                        className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-300 transition hover:bg-slate-800 disabled:opacity-50"
+                        className="rounded-lg border border-app-border bg-app-bg/40 px-3 py-1.5 text-xs font-semibold text-app-text transition hover:bg-app-card-hover disabled:opacity-50"
                       >
                         Editar
                       </button>
@@ -140,11 +156,10 @@ export default function UsersPage() {
                         type="button"
                         disabled={pending}
                         onClick={() => setToggleTarget(user)}
-                        className={`rounded-lg border px-2.5 py-1 text-xs transition disabled:opacity-50 ${
-                          user.active
-                            ? "border-red-900/60 text-red-400 hover:bg-red-950/40"
-                            : "border-emerald-900/60 text-emerald-400 hover:bg-emerald-950/40"
-                        }`}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${user.active
+                            ? "border-red-500/40 text-red-500 hover:bg-red-500/10"
+                            : "border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10"
+                          }`}
                       >
                         {user.active ? "Desativar" : "Ativar"}
                       </button>
@@ -196,21 +211,21 @@ export default function UsersPage() {
       )}
 
       {toggleTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6">
-            <h3 className="text-base font-semibold">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-app-border bg-app-card p-8 shadow-2xl backdrop-blur-xl animate-scale-in">
+            <h3 className="text-base font-bold text-app-text">
               {toggleTarget.active ? "Desativar usuário" : "Ativar usuário"}
             </h3>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-3 text-sm text-app-muted leading-relaxed">
               {toggleTarget.active
-                ? `Desativar ${toggleTarget.name}? Todas as sessões serão revogadas.`
-                : `Reativar ${toggleTarget.name}?`}
+                ? `Você tem certeza que deseja desativar a conta de ${toggleTarget.name}? Esta ação revogará imediatamente todas as sessões ativas do usuário.`
+                : `Deseja reativar o acesso de ${toggleTarget.name} ao sistema?`}
             </p>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-app-border">
               <button
                 type="button"
                 onClick={() => setToggleTarget(null)}
-                className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300"
+                className="rounded-xl border border-app-border bg-app-bg/60 px-4 py-2 text-sm font-semibold text-app-text hover:bg-app-card-hover transition"
               >
                 Cancelar
               </button>
@@ -223,7 +238,7 @@ export default function UsersPage() {
                     active: !toggleTarget.active,
                   })
                 }
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-indigo-500 transition active:scale-95 disabled:opacity-50"
               >
                 Confirmar
               </button>

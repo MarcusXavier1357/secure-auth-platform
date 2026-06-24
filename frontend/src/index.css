@@ -1,1 +1,108 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-app-bg: var(--bg-app);
+  --color-app-text: var(--text-primary);
+  --color-app-muted: var(--text-secondary);
+  --color-app-border: var(--border-primary);
+  --color-app-card: var(--card-bg);
+  --color-app-card-hover: var(--card-hover-bg);
+  --color-app-input: var(--input-bg);
+}
+
+:root {
+  --bg-app: #030712;
+  --bg-body-radial: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 40%),
+                    radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.05) 0px, transparent 40%),
+                    radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 40%);
+  --text-primary: #f3f4f6;
+  --text-secondary: #94a3b8;
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(15, 23, 42, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --sidebar-bg: rgba(3, 7, 18, 0.45);
+  --card-bg: rgba(15, 23, 42, 0.3);
+  --card-hover-bg: rgba(15, 23, 42, 0.5);
+  --input-bg: rgba(3, 7, 18, 0.6);
+  --shadow-color: rgba(0, 0, 0, 0.5);
+}
+
+html.light {
+  --bg-app: #f1f5f9;
+  --bg-body-radial: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.04) 0px, transparent 40%),
+                    radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.03) 0px, transparent 40%),
+                    radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.04) 0px, transparent 40%);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --border-primary: rgba(0, 0, 0, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.12);
+  --sidebar-bg: rgba(255, 255, 255, 0.85);
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --card-hover-bg: rgba(255, 255, 255, 0.95);
+  --input-bg: #ffffff;
+  --shadow-color: rgba(99, 102, 241, 0.06);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  background-image: var(--bg-body-radial);
+  background-attachment: fixed;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.1);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 120, 0.4);
+}
+
+/* Glassmorphism utility classes */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-panel-glow {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px 0 var(--shadow-color), 
+              0 0 40px 0 rgba(99, 102, 241, 0.02);
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--text-primary) 0%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.code-pill {
+  color: #a5b4fc !important; /* text-indigo-300 em dark mode */
+}
+
+html.light .code-pill {
+  color: #000000 !important; /* preto no modo claro */
+}
+

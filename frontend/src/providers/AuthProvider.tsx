@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, setAccessToken, tryRefresh, type User } from "../services/api";
+import { api, setAccessToken, tryRefresh, type UserWithPermissions } from "../services/api";
 import { matchPermission } from "../utils/permission";
 
 interface AuthState {
-  user: User | null;
+  user: UserWithPermissions | null;
   permissions: string[];
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -14,7 +14,7 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserWithPermissions | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
