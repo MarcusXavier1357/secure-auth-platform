@@ -143,3 +143,28 @@ func (r *SessionRepository) RevokeAllByUser(ctx context.Context, userID int64) e
 		Exec(ctx)
 	return err
 }
+
+func (r *SessionRepository) FindActiveByUserID(ctx context.Context, userID int64) ([]models.Session, error) {
+	var sessions []models.Session
+	err := r.db.NewSelect().
+		Model(&sessions).
+		Where("s.user_id = ?", userID).
+		Where("s.revoked = ?", false).
+		Where("s.expires_at > ?", time.Now()).
+		Order("s.last_activity_at DESC", "s.created_at DESC").
+		Scan(ctx)
+	return sessions, err
+}
+
+func (r *SessionRepository) RevokeAllByUserExceptCurrent(ctx context.Context, userID int64, currentSessionID int64) error {
+	now := time.Now()
+	_, err := r.db.NewUpdate().
+		Model((*models.Session)(nil)).
+		Set("revoked = ?", true).
+		Set("revoked_at = ?", now).
+		Where("user_id = ?", userID).
+		Where("id != ?", currentSessionID).
+		Where("revoked = ?", false).
+		Exec(ctx)
+	return err
+}

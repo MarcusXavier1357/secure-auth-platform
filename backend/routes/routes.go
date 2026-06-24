@@ -39,6 +39,9 @@ func Setup(app *fiber.App, d Deps) {
 
 	// Autenticadas
 	app.Get("/me", authMW, d.UserHandler.Me)
+	app.Get("/auth/sessions", authMW, d.AuthHandler.ListSessions)
+	app.Delete("/auth/sessions", authMW, d.AuthHandler.RevokeAllSessionsExceptCurrent)
+	app.Delete("/auth/sessions/:id", authMW, d.AuthHandler.RevokeSession)
 
 	// Gestão de usuários
 	app.Get("/users", authMW, requirePerm("users.read"), d.UserHandler.List)

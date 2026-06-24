@@ -415,3 +415,32 @@ func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }
+
+func (s *AuthService) ListActiveSessions(ctx context.Context, userID int64) ([]models.Session, error) {
+	return s.sessions.FindActiveByUserID(ctx, userID)
+}
+
+func (s *AuthService) RevokeSession(ctx context.Context, sessionID int64, userID int64) error {
+	session, err := s.sessions.FindByID(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if session.UserID != userID {
+		return errors.New("unauthorized to revoke this session")
+	}
+	err = s.sessions.RevokeWithTimestamp(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	s.audit.Log(ctx, &userID, "session.revoked_manually", "sessions", &sessionID, map[string]any{"userAgent": session.UserAgent, "ip": session.IPAddress}, nil)
+	return nil
+}
+
+func (s *AuthService) RevokeOtherSessions(ctx context.Context, userID int64, currentSessionID int64) error {
+	err := s.sessions.RevokeAllByUserExceptCurrent(ctx, userID, currentSessionID)
+	if err != nil {
+		return err
+	}
+	s.audit.Log(ctx, &userID, "sessions.revoked_others", "users", &userID, nil, nil)
+	return nil
+}

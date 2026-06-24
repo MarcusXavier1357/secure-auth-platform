@@ -41,3 +41,9 @@ func UserID(c *fiber.Ctx) int64 {
 	id, _ := c.Locals("userId").(int64)
 	return id
 }
+
+// SessionID lê o sessionId injetado pelo middleware Auth.
+func SessionID(c *fiber.Ctx) int64 {
+	id, _ := c.Locals("sessionId").(int64)
+	return id
+}

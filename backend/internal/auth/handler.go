@@ -7,7 +7,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"auth-backend/internal/models"
 	"auth-backend/internal/service"
+	"auth-backend/middleware"
 )
 
 const refreshCookieName = "refresh_token"
@@ -103,4 +105,56 @@ func (h *Handler) clearRefreshCookie(c *fiber.Ctx) {
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
 	})
+}
+
+func (h *Handler) ListSessions(c *fiber.Ctx) error {
+	userID := middleware.UserID(c)
+	currentSessionID := middleware.SessionID(c)
+
+	sessions, err := h.auth.ListActiveSessions(c.Context(), userID)
+	if err != nil {
+		return err
+	}
+
+	type sessionResponse struct {
+		models.Session
+		IsCurrent bool `json:"isCurrent"`
+	}
+
+	response := make([]sessionResponse, 0, len(sessions))
+	for _, s := range sessions {
+		response = append(response, sessionResponse{
+			Session:   s,
+			IsCurrent: s.ID == currentSessionID,
+		})
+	}
+	return c.JSON(response)
+}
+
+func (h *Handler) RevokeSession(c *fiber.Ctx) error {
+	userID := middleware.UserID(c)
+	sessionID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid session id")
+	}
+
+	currentSessionID := middleware.SessionID(c)
+	if sessionID == currentSessionID {
+		return fiber.NewError(fiber.StatusConflict, "cannot revoke your current session")
+	}
+
+	if err := h.auth.RevokeSession(c.Context(), sessionID, userID); err != nil {
+		return err
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) RevokeAllSessionsExceptCurrent(c *fiber.Ctx) error {
+	userID := middleware.UserID(c)
+	currentSessionID := middleware.SessionID(c)
+
+	if err := h.auth.RevokeOtherSessions(c.Context(), userID, currentSessionID); err != nil {
+		return err
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
