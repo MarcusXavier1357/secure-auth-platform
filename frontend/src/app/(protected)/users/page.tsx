@@ -4,9 +4,11 @@ import { api, type UserWithPermissions } from "../../../services/api";
 import { Can } from "../../../components/Can";
 import { UserFormModal } from "../../../components/UserFormModal";
 import { parseApiErrorMessage } from "../../../utils/apiError";
+import { useToast } from "../../../hooks/useToast";
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserWithPermissions | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -26,6 +28,7 @@ export default function UsersPage() {
       invalidate();
       setModalOpen(false);
       setFormError(null);
+      toast.success("Usuário criado com sucesso!");
     },
     onError: (err) => setFormError(parseApiErrorMessage(err, "Erro ao criar usuário.")),
   });
@@ -38,6 +41,7 @@ export default function UsersPage() {
       setModalOpen(false);
       setEditingUser(null);
       setFormError(null);
+      toast.success("Usuário atualizado com sucesso!");
     },
     onError: (err) => setFormError(parseApiErrorMessage(err, "Erro ao atualizar usuário.")),
   });
@@ -47,10 +51,11 @@ export default function UsersPage() {
       api.users.update(id, { active }),
     onSuccess: () => {
       invalidate();
+      toast.success(toggleTarget?.active ? "Usuário desativado com sucesso!" : "Usuário ativado com sucesso!");
       setToggleTarget(null);
     },
     onError: (err) => {
-      alert(parseApiErrorMessage(err, "Erro ao alterar status do usuário."));
+      toast.error(parseApiErrorMessage(err, "Erro ao alterar status do usuário."));
       setToggleTarget(null);
     },
   });

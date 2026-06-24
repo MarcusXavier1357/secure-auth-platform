@@ -3,11 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Permission } from "../../../services/api";
 import { Can } from "../../../components/Can";
 import { parseApiErrorMessage } from "../../../utils/apiError";
+import { useToast } from "../../../hooks/useToast";
 
 const PROTECTED_CODES = new Set(["*", "users.*", "audit_logs.read"]);
 
 export default function PermissionsPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const userSectionRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [catalogModal, setCatalogModal] = useState<"create" | { edit: Permission } | null>(null);
@@ -44,6 +46,7 @@ export default function PermissionsPage() {
       invalidatePerms();
       setCatalogModal(null);
       setCatalogError(null);
+      toast.success("Permissão criada com sucesso!");
     },
     onError: (err) => setCatalogError(parseApiErrorMessage(err, "Erro ao criar permissão.")),
   });
@@ -55,6 +58,7 @@ export default function PermissionsPage() {
       invalidatePerms();
       setCatalogModal(null);
       setCatalogError(null);
+      toast.success("Permissão atualizada com sucesso!");
     },
     onError: (err) => setCatalogError(parseApiErrorMessage(err, "Erro ao atualizar permissão.")),
   });
@@ -64,9 +68,10 @@ export default function PermissionsPage() {
     onSuccess: () => {
       invalidatePerms();
       setDeleteTarget(null);
+      toast.success("Permissão excluída com sucesso!");
     },
     onError: (err) => {
-      alert(parseApiErrorMessage(err, "Erro ao excluir permissão."));
+      toast.error(parseApiErrorMessage(err, "Erro ao excluir permissão."));
       setDeleteTarget(null);
     },
   });
@@ -74,8 +79,11 @@ export default function PermissionsPage() {
   const grant = useMutation({
     mutationFn: ({ userId, permissionId }: { userId: number; permissionId: number }) =>
       api.permissions.grant(userId, permissionId),
-    onSuccess: invalidateUsers,
-    onError: (err) => alert(parseApiErrorMessage(err, "Erro ao conceder permissão.")),
+    onSuccess: () => {
+      invalidateUsers();
+      toast.success("Permissão concedida!");
+    },
+    onError: (err) => toast.error(parseApiErrorMessage(err, "Erro ao conceder permissão.")),
   });
 
   const revoke = useMutation({
@@ -84,9 +92,10 @@ export default function PermissionsPage() {
     onSuccess: () => {
       invalidateUsers();
       setRevokeTarget(null);
+      toast.success("Permissão revogada!");
     },
     onError: (err) => {
-      alert(parseApiErrorMessage(err, "Erro ao revogar permissão."));
+      toast.error(parseApiErrorMessage(err, "Erro ao revogar permissão."));
       setRevokeTarget(null);
     },
   });
