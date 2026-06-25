@@ -100,20 +100,27 @@ sequenceDiagram
 app.Get("/users", authMW, requirePerm("users.manage"), handler.List)
 ```
 
-- `Auth`: valida assinatura/expiração do JWT, confirma usuário **ativo** no banco (token de usuário desativado morre na hora), injeta `userId` no contexto
+- `Auth`:
+  - Valida assinatura/expiração do JWT.
+  - Confirma usuário **ativo** no banco (token de usuário desativado morre na hora).
+  - Verifica instantaneamente se a sessão foi revogada (`revoked = true`) através da função `TouchSession` (que falha e retorna `401` imediatamente se a query de atualização de atividade afetar 0 linhas por conta da revogação), fechando de forma imediata a janela de validade stateless do JWT.
+  - Injeta `userId` e `sessionId` no contexto.
 - `RequirePermission(code)`: cache-aside no Redis com fallback Postgres (detalhes em [redis.md](redis.md)) → `403` se não possuir
 
 ## Rotas
 
-| Método | Rota | Proteção |
-|---|---|---|
-| POST | `/auth/login`, `/auth/refresh`, `/auth/logout` | Públicas (login com rate limit) |
-| GET | `/health` | Pública — verifica Postgres + Redis |
-| GET | `/me` | Autenticado |
-| GET/POST | `/users` · GET/PATCH `/users/:id` | `users.manage` |
-| GET | `/permissions` | `permissions.manage` |
-| POST/DELETE | `/users/:id/permissions[/:permissionId]` | `permissions.manage` |
-| GET | `/audit-logs` | `audit_logs.read` |
+| Método | Rota | Proteção | Descrição |
+|---|---|---|---|
+| POST | `/auth/login`, `/auth/refresh`, `/auth/logout` | Públicas (login com rate limit) | Autenticação básica |
+| GET | `/health` | Pública | Status da API e integridade do Postgres + Redis |
+| GET | `/me` | Autenticado | Dados do usuário logado e suas permissões |
+| GET | `/auth/sessions` | Autenticado | Listar sessões de login ativas do usuário |
+| DELETE | `/auth/sessions` | Autenticado | Revogar todas as outras sessões (exceto a atual) |
+| DELETE | `/auth/sessions/:id` | Autenticado | Revogar uma sessão específica por ID |
+| GET/POST | `/users` · GET/PATCH `/users/:id` | `users.manage` | Gestão de contas de usuário |
+| GET | `/permissions` | `permissions.manage` | Catálogo de permissões |
+| POST/DELETE | `/users/:id/permissions[/:permissionId]` | `permissions.manage` | Concessão/revogação de permissões |
+| GET | `/audit-logs` | `audit_logs.read` | Histórico estruturado de auditoria |
 
 Regras de negócio notáveis: email validado com `net/mail`; senha mínima de 8 chars; usuário **não pode desativar a própria conta** (`409`); desativação revoga todas as sessões e invalida o cache de permissões.
 

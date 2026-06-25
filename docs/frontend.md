@@ -24,9 +24,10 @@ frontend/src/
 │       ├── page.tsx            # / (Dashboard)
 │       ├── users/page.tsx      # /users        (users.manage, lazy)
 │       ├── permissions/page.tsx# /permissions  (permissions.manage, lazy)
-│       └── audit/page.tsx      # /audit        (audit_logs.read, lazy)
+│       ├── audit/page.tsx      # /audit        (audit_logs.read, lazy)
+│       └── sessions/page.tsx   # /sessions     (Gerenciamento de sessões)
 ├── services/
-│   └── api.ts                  # ÚNICO ponto de fetch + api.users/permissions/audit
+│   └── api.ts                  # ÚNICO ponto de fetch + api.users/permissions/audit/sessions
 ├── providers/
 │   └── AuthProvider.tsx        # contexto: user, permissions, login(), logout()
 ├── hooks/
@@ -40,14 +41,15 @@ frontend/src/
 
 ### Mapa de rotas
 
-| Rota | Arquivo | Guard |
-|---|---|---|
-| `/login` | `app/(public)/login/page.tsx` | Pública; redireciona para `/` se logado |
-| `/` | `app/(protected)/page.tsx` | `RequireAuth` |
-| `/users` | `app/(protected)/users/page.tsx` | `RequireAuth` + `users.manage` |
-| `/permissions` | `app/(protected)/permissions/page.tsx` | `RequireAuth` + `permissions.manage` |
-| `/audit` | `app/(protected)/audit/page.tsx` | `RequireAuth` + `audit_logs.read` |
-| `*` | `NotFoundPage` em `router/index.tsx` | — |
+| Rota | Arquivo | Guard | Descrição |
+|---|---|---|---|
+| `/login` | `app/(public)/login/page.tsx` | Pública; redireciona para `/` se logado | Tela de login |
+| `/` | `app/(protected)/page.tsx` | `RequireAuth` | Dashboard principal |
+| `/sessions` | `app/(protected)/sessions/page.tsx` | `RequireAuth` | Gerenciamento de dispositivos/sessões ativas |
+| `/users` | `app/(protected)/users/page.tsx` | `RequireAuth` + `users.manage` | Controle de usuários |
+| `/permissions` | `app/(protected)/permissions/page.tsx` | `RequireAuth` + `permissions.manage` | Gestão de perfis e permissões |
+| `/audit` | `app/(protected)/audit/page.tsx` | `RequireAuth` + `audit_logs.read` | Visualização de logs de auditoria |
+| `*` | `NotFoundPage` em `router/index.tsx` | — | Fallback 404 |
 
 ### Convenções de rota
 
